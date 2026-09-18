@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { MovementType, Unit } from "./units/Unit";
 
 /**
  * Main game scene.
@@ -7,18 +8,11 @@ import Phaser from "phaser";
  * For now, BattleBall'z has only one scene: the arena.
  */
 class BattleBallzScene extends Phaser.Scene {
-  private ball!: Phaser.GameObjects.Arc;
-
-  // Ball movement.
-  private velocityX = 150;
-  private velocityY = 100;
+  private player!: Unit;
 
   // Arena dimensions.
   private readonly arenaWidth = 500;
   private readonly arenaHeight = 500;
-
-  // Ball radius.
-  private readonly ballRadius = 20;
 
   constructor() {
     super("BattleBallzScene");
@@ -27,7 +21,7 @@ class BattleBallzScene extends Phaser.Scene {
   create() {
     console.log("BattleBallz scene created");
 
-    // Draw a simple 500x500 arena.
+    // Draw a simple 500x500 arena background.
     this.add.rectangle(
       this.arenaWidth / 2,
       this.arenaHeight / 2,
@@ -45,50 +39,30 @@ class BattleBallzScene extends Phaser.Scene {
       )
       .setStrokeStyle(20, 0x4d0feb);
 
-    // Add the first BattleBall'z unit.
-    this.ball = this.add.circle(
+    // Create our first unit.
+    this.player = new Unit(
+      this,
       this.arenaWidth / 2,
       this.arenaHeight / 2,
-      this.ballRadius,
-      0xff0000
+      20,                     // radius
+      150,                    // speed
+      MovementType.BOUNCE,
+      0xff0000,               // color
+      this.arenaWidth,
+      this.arenaHeight,
     );
 
-    console.log("Ball created:", this.ball);
+    console.log("Ball created:", this.player);
   }
 
   update(_time: number, delta: number) {
     // delta is the amount of time since the previous frame,
     // measured in milliseconds.
-    //
     // Convert it to seconds because our velocity is expressed
     // in pixels per second.
     const deltaSeconds = delta / 1000;
 
-    // Move the ball.
-    this.ball.x += this.velocityX * deltaSeconds;
-    this.ball.y += this.velocityY * deltaSeconds;
-
-    // Left/right wall.
-    if (this.ball.x - this.ballRadius <= 0) {
-      this.ball.x = this.ballRadius;
-      this.velocityX *= -1;
-    }
-
-    if (this.ball.x + this.ballRadius >= this.arenaWidth) {
-      this.ball.x = this.arenaWidth - this.ballRadius;
-      this.velocityX *= -1;
-    }
-
-    // Top/bottom wall.
-    if (this.ball.y - this.ballRadius <= 0) {
-      this.ball.y = this.ballRadius;
-      this.velocityY *= -1;
-    }
-
-    if (this.ball.y + this.ballRadius >= this.arenaHeight) {
-      this.ball.y = this.arenaHeight - this.ballRadius;
-      this.velocityY *= -1;
-    }
+    this.player.update(deltaSeconds);
   }
 }
 
