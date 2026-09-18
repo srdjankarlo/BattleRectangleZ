@@ -231,7 +231,7 @@ class BattleBallzScene extends Phaser.Scene {
     );
 
     row.fill.width =
-      100 * unit.getHealthRatio();
+      150 * unit.getHealthRatio();
   }
 
   // DEAD UNIT CLEANUP

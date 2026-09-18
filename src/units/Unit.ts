@@ -1,59 +1,44 @@
 import Phaser from "phaser";
 
-export const MovementType = {
-  BOUNCE: "bounce",
-  WANDER: "wander",
-  JITTER: "jitter",
-} as const;
+import {
+  Movement,
+  MovementType,
+} from "./Movement";
 
-export type MovementType =
-  (typeof MovementType)[keyof typeof MovementType];
+import { Combat } from "./Combat";
+import { Health } from "./Health";
+import { Physics } from "./Physics";
+
+// Re-export MovementType so main.ts can keep importing it
+// from Unit.ts for now.
+export {
+  MovementType,
+} from "./Movement";
 
 export class Unit {
-  
+  // --------------------------------------------------
   // Visual
   // --------------------------------------------------
-  // The Phaser object that actually appears on the screen.
+
   public readonly sprite: Phaser.GameObjects.Arc;
-  // Health ellipse surrounding the unit.
-  private readonly healthEllipse: Phaser.GameObjects.Graphics;
-  
-  // Basic unit properties
+
+  private readonly healthEllipse:
+    Phaser.GameObjects.Graphics;
+
   // --------------------------------------------------
+  // Game systems
+  // --------------------------------------------------
+
+  public readonly movement: Movement;
+  public readonly combat: Combat;
+  public readonly health: Health;
+  public readonly physics: Physics;
+
+  // --------------------------------------------------
+  // Basic information
+  // --------------------------------------------------
+
   public readonly name: string;
-  public readonly radius: number; // How large the unit is.
-  public readonly movementType: MovementType; // How this unit moves.
-
-  // Combat properties
-  // --------------------------------------------------
-  private readonly maxHealth: number;
-  private health: number;
-  private readonly bodyAttackDamage: number;
-
-  // Prevents body collision from dealing damage every
-  // single frame while units are touching.
-  private bodyDamageCooldown = 0;
-  private readonly bodyDamageCooldownDuration = 0.3;
-
-  // Movement
-  // --------------------------------------------------
-  private speed: number; // How fast the unit moves, in pixels per second.
-  
-  // Current velocity in pixels per second.
-  private velocityX: number;
-  private velocityY: number;
-
-  // Arena boundaries.
-  // --------------------------------------------------
-  private readonly arenaWidth: number;
-  private readonly arenaHeight: number;
-
-  // Physics
-  // --------------------------------------------------
-  // Used for collision calculations.
-  // For now every unit has the same mass.
-  // Later this can be changed for different character types.
-  private readonly mass = 1;
 
   constructor(
     scene: Phaser.Scene,
@@ -70,347 +55,191 @@ export class Unit {
     arenaHeight: number,
   ) {
     this.name = name;
-    this.radius = radius;
-    this.speed = speed;
-    this.maxHealth = maxHealth;
-    this.health = maxHealth;
-    this.bodyAttackDamage = bodyAttackDamage;
-    this.movementType = movementType;
-    this.arenaWidth = arenaWidth;
-    this.arenaHeight = arenaHeight;
 
-    // Choose a random starting direction.
-    // Math.PI * 2 represents a full circle (2*PI = 360 degrees).
-    //              270°
-    //               ↑
-    //               |
-    // 180°  ←────── ● ──────→  0°
-    //               |
-    //               ↓
-    //              90°
-    // 0°       → right → 0
-    // 90°      → down → PI/2
-    // 180°     → left → PI
-    // 270°     → up → 3*PI/2
-    const direction = Math.random() * Math.PI * 2;
+    // ----------------------------------------------
+    // Create systems
+    // ----------------------------------------------
 
-    // Convert direction + speed into X/Y velocity.
-    this.velocityX = Math.cos(direction) * this.speed;
-    this.velocityY = Math.sin(direction) * this.speed;
+    this.health =
+      new Health(maxHealth);
 
-    // Create unit
-    // ------------------------------------------------
-    // Create the visible circle.
-    this.sprite = scene.add.circle(
-      x,
-      y,
-      radius,
-      color,
+    this.combat =
+      new Combat(bodyAttackDamage);
+
+    this.physics =
+      new Physics(
+        x,
+        y,
+        radius,
+        arenaWidth,
+        arenaHeight,
+      );
+
+    this.movement =
+      new Movement(
+        speed,
+        movementType,
+      );
+
+    // Give Physics its initial velocity.
+    this.movement.initialize(
+      this.physics,
     );
 
-    // Create health elipse
-    // ------------------------------------------------
-    this.healthEllipse = scene.add.graphics();
+    // ----------------------------------------------
+    // Create visual object
+    // ----------------------------------------------
+
+    this.sprite =
+      scene.add.circle(
+        x,
+        y,
+        radius,
+        color,
+      );
+
+    // ----------------------------------------------
+    // Create health ellipse
+    // ----------------------------------------------
+
+    this.healthEllipse =
+      scene.add.graphics();
+
     this.updateHealthEllipse();
   }
 
-  // Public update
   // --------------------------------------------------
+  // UPDATE
+  // --------------------------------------------------
+
   update(deltaSeconds: number): void {
-    // Decrease damage cooldown over time.
-    if (this.bodyDamageCooldown > 0) {
-      this.bodyDamageCooldown -= deltaSeconds;
+    // Combat cooldown needs updating even though it
+    // is not directly related to movement.
+    this.combat.update(
+      deltaSeconds,
+    );
 
-      if (this.bodyDamageCooldown < 0) {
-        this.bodyDamageCooldown = 0;
-      }
-    }
-
-    // Dead units do not move.
+    // Dead units don't move.
     if (!this.isAlive()) {
       return;
     }
 
-    switch (this.movementType) {
-      case MovementType.BOUNCE:
-        this.updateBounce(deltaSeconds);
-        break;
+    // Movement decides how the unit should move.
+    this.movement.update(
+      deltaSeconds,
+      this.physics,
+    );
 
-      case MovementType.WANDER:
-        this.updateWander(deltaSeconds);
-        break;
+    // Physics applies the movement.
+    this.physics.update(
+      deltaSeconds,
+    );
 
-      case MovementType.JITTER:
-        this.updateJitter(deltaSeconds);
-        break;
-    }
+    // Physics handles arena boundaries.
+    this.physics.handleWallCollision();
 
-    this.handleWallCollision();
+    // Copy the physics position to the
+    // visible Phaser object.
+    this.syncSpriteToPhysics();
+
+    // Keep health ellipse around unit.
     this.updateHealthEllipse();
   }
 
-  // BOUNCE
   // --------------------------------------------------
-  private updateBounce(deltaSeconds: number): void {
-    // Move the unit.
-    // Bounce does not change its direction by itself.
-    // It keeps traveling in the current direction.
-    this.sprite.x += this.velocityX * deltaSeconds;
-    this.sprite.y += this.velocityY * deltaSeconds;
-  }
-
-  // WANDER
+  // COLLISION
   // --------------------------------------------------
-  private updateWander(deltaSeconds: number): void {
-    /*
-     * Gradually change direction.
-     *
-     * Unlike JITTER, this happens smoothly.
-     *
-     * 45 degrees per second is only a starting value.
-     * We can balance this later per character.
-     */
-    const maximumTurnPerSecond =
-      Phaser.Math.DegToRad(360);
 
-    const randomTurn =
-      Phaser.Math.FloatBetween(-1, 1) *
-      maximumTurnPerSecond *
-      deltaSeconds;
+  resolveCollision(
+    other: Unit,
+  ): void {
+    if (
+      !this.isAlive() ||
+      !other.isAlive()
+    ) {
+      return;
+    }
 
-    const currentDirection =
-      Math.atan2(
-        this.velocityY,
-        this.velocityX,
-      );
-    
-    const newDirection = currentDirection + randomTurn;
-
-    this.velocityX =
-      Math.cos(newDirection) * this.speed;
-
-    this.velocityY =
-      Math.sin(newDirection) * this.speed;
-
-    this.sprite.x +=
-      this.velocityX * deltaSeconds;
-
-    this.sprite.y +=
-      this.velocityY * deltaSeconds;
-  }
-
-  // JITTER
-  // --------------------------------------------------
-  private updateJitter(deltaSeconds: number): void {
-    /*
-     * JITTER deliberately changes direction every frame.
-     *
-     * The change is random, but limited so the unit
-     * doesn't instantly teleport in a completely
-     * unrelated direction.
-     */
-    const maximumJitter =
-      Phaser.Math.DegToRad(25);
-
-    const randomJitter =
-      Phaser.Math.FloatBetween(
-        -maximumJitter,
-        maximumJitter,
-      );
-    
-    const currentDirection =
-      Math.atan2(
-        this.velocityY,
-        this.velocityX,
+    // First solve the physical collision.
+    const collisionOccurred =
+      this.physics.resolveCollision(
+        other.physics,
       );
 
-    const newDirection =
-      currentDirection + randomJitter;
-
-    this.velocityX =
-      Math.cos(newDirection) * this.speed;
-
-    this.velocityY =
-      Math.sin(newDirection) * this.speed;
-
-    this.sprite.x +=
-      this.velocityX * deltaSeconds;
-
-    this.sprite.y +=
-      this.velocityY * deltaSeconds;
-  }
-
-  // WALL COLLISION
-  // --------------------------------------------------
-  private handleWallCollision(): void {
-    // LEFT WALL
-    if (this.sprite.x - this.radius <= 0) {
-      this.sprite.x = this.radius;
-
-      // Reverse horizontal velocity.
-      this.velocityX *= -1;
-    }
-
-    // RIGHT WALL
-    if (this.sprite.x + this.radius >= this.arenaWidth) {
-      this.sprite.x = this.arenaWidth - this.radius;
-
-      // Reverse horizontal direction.
-      this.velocityX *= -1;
-    }
-
-    // TOP WALL
-    if (this.sprite.y - this.radius <= 0) {
-      this.sprite.y = this.radius;
-
-      // Reverse vertical velocity.
-      this.velocityY *= -1;
-    }
-
-    // BOTTOM WALL
-    if (this.sprite.y + this.radius >= this.arenaHeight) {
-      this.sprite.y = this.arenaHeight - this.radius;
-
-      // Reverse vertical direction.
-      this.velocityY *= -1;
-    }
-  }
-
-  // UNIT COLLISION
-  // --------------------------------------------------
-  resolveCollision(other: Unit): void {
-    // Dead units don't collide.
-    if (!this.isAlive() || !other.isAlive()) {
+    if (!collisionOccurred) {
       return;
     }
 
-    const dx = other.sprite.x - this.sprite.x;
-    const dy = other.sprite.y - this.sprite.y;
-
-    const distanceSquared = dx * dx + dy * dy;
-
-    const minimumDistance = this.radius + other.radius;
-
-    // They aren't touching.
-    if (distanceSquared >= minimumDistance * minimumDistance) {
-      return;
-    }
-
-    // Distance between the centers.
-    let distance = Math.sqrt(distanceSquared);
-    
-    let normalX: number;
-    let normalY: number;
-
-    // Prevent division by zero if the units are exactly
-    // on top of each other.
     /*
-     * If both circles somehow occupy exactly the
-     * same position, choose a random collision direction.
-     */
-    if (distance === 0) {
-      const randomAngle = Math.random() * Math.PI * 2;
-
-      normalX = Math.cos(randomAngle);
-      normalY = Math.sin(randomAngle);
-
-      distance = 0.0001;
-    } else {
-      normalX = dx / distance;
-      normalY = dy / distance;
-    }
-
-    /*
-     * --------------------------------------------------
-     * 1. Separate the units
-     * --------------------------------------------------
+     * IMPORTANT:
      *
-     * If the circles overlap, move them apart so they
-     * no longer occupy the same space.
+     * Capture both attack states BEFORE dealing
+     * any damage.
+     *
+     * This fixes the bug where the first unit to
+     * kill the other prevented the dead unit from
+     * dealing its own final attack.
      */
-    const overlap = minimumDistance - distance;
+    const thisCanAttack =
+      this.combat.canDealBodyDamage();
 
-    this.sprite.x -= normalX * overlap / 2;
-    this.sprite.y -= normalY * overlap / 2;
+    const otherCanAttack =
+      other.combat.canDealBodyDamage();
 
-    other.sprite.x += normalX * overlap / 2;
-    other.sprite.y += normalY * overlap / 2;
+    const thisTargetWasAlive =
+      other.isAlive();
 
-    /*
-     * --------------------------------------------------
-     * 2. Check whether they are actually moving
-     *    toward each other.
-     * --------------------------------------------------
-     */
-    const relativeVelocityX =
-      other.velocityX - this.velocityX;
+    const otherTargetWasAlive =
+      this.isAlive();
 
-    const relativeVelocityY =
-      other.velocityY - this.velocityY;
+    // ----------------------------------------------
+    // Apply THIS unit's damage.
+    // ----------------------------------------------
 
-    const velocityAlongNormal =
-      relativeVelocityX * normalX +
-      relativeVelocityY * normalY;
+    if (
+      thisCanAttack &&
+      thisTargetWasAlive
+    ) {
+      other.takeDamage(
+        this.combat.bodyAttackDamage,
+      );
 
-    // Positive means they are moving apart already.
-    if (velocityAlongNormal > 0) {
-      return;
+      this.combat
+        .startBodyDamageCooldown();
     }
 
-    /*
-     * --------------------------------------------------
-     * 3. Apply a simple elastic collision.
-     * --------------------------------------------------
-     *
-     * For now both units have mass = 1.
-     *
-     * Later this can become more sophisticated so that
-     * a Giant can push a Peasant differently from two
-     * Peasants colliding.
-     */
-    const impulse =
-      (-2 * velocityAlongNormal) /
-      (this.mass + other.mass);
+    // ----------------------------------------------
+    // Apply OTHER unit's damage.
+    // ----------------------------------------------
 
-    this.velocityX -=
-      impulse * other.mass * normalX;
+    if (
+      otherCanAttack &&
+      otherTargetWasAlive
+    ) {
+      this.takeDamage(
+        other.combat.bodyAttackDamage,
+      );
 
-    this.velocityY -=
-      impulse * other.mass * normalY;
-
-    other.velocityX +=
-      impulse * this.mass * normalX;
-
-    other.velocityY +=
-      impulse * this.mass * normalY;
-    
-    // Body damage
-    // -----------------------------------------------
-    this.tryDealBodyDamage(other);
-    other.tryDealBodyDamage(this);
+      other.combat
+        .startBodyDamageCooldown();
+    }
   }
 
-  // BODY DAMAGE
   // --------------------------------------------------
-  private tryDealBodyDamage(target: Unit): void {
-    if (this.bodyDamageCooldown > 0) {
+  // DAMAGE
+  // --------------------------------------------------
+
+  private takeDamage(
+    amount: number,
+  ): void {
+    if (!this.isAlive()) {
       return;
     }
 
-    if (!this.isAlive() || !target.isAlive()) {
-      return;
-    }
+    this.health.takeDamage(
+      amount,
+    );
 
-    target.takeDamage(this.bodyAttackDamage,);
-
-    this.bodyDamageCooldown = this.bodyDamageCooldownDuration;
-  }
-
-  private takeDamage(amount: number): void {
-    this.health = Math.max(0, this.health - amount,);
-
-    // Update immediately instead of waiting for
-    // the next frame.
     this.updateHealthEllipse();
 
     if (!this.isAlive()) {
@@ -418,34 +247,54 @@ export class Unit {
     }
   }
 
+  // --------------------------------------------------
   // DEATH
   // --------------------------------------------------
+
   private die(): void {
-    // Hide everything immediately.
+    // Hide immediately.
     this.sprite.setVisible(false);
-    this.healthEllipse.setVisible(false);
+
+    this.healthEllipse.setVisible(
+      false,
+    );
   }
 
+  // --------------------------------------------------
+  // POSITION
+  // --------------------------------------------------
+
+  private syncSpriteToPhysics(): void {
+    this.sprite.setPosition(
+      this.physics.x,
+      this.physics.y,
+    );
+  }
+
+  // --------------------------------------------------
   // HEALTH
   // --------------------------------------------------
+
   public isAlive(): boolean {
-    return this.health > 0;
+    return this.health.isAlive();
   }
 
   public getHealth(): number {
-    return this.health;
+    return this.health.getCurrentHealth();
   }
 
   public getMaxHealth(): number {
-    return this.maxHealth;
+    return this.health.getMaxHealth();
   }
 
   public getHealthRatio(): number {
-    return this.health / this.maxHealth;
+    return this.health.getHealthRatio();
   }
 
+  // --------------------------------------------------
   // HEALTH ELLIPSE
   // --------------------------------------------------
+
   private updateHealthEllipse(): void {
     this.healthEllipse.clear();
 
@@ -453,16 +302,21 @@ export class Unit {
       return;
     }
 
-    const centerX = this.sprite.x;
-    const centerY = this.sprite.y;
+    const centerX =
+      this.physics.x;
 
-    // Make the ellipse slightly larger than the circle.
-    const radiusX = this.radius + 8;
-    const radiusY = this.radius + 12;
+    const centerY =
+      this.physics.y;
 
-    // -----------------------------------------------
-    // Background ellipse.
-    // -----------------------------------------------
+    const radiusX =
+      this.physics.radius + 8;
+
+    const radiusY =
+      this.physics.radius + 12;
+
+    // ----------------------------------------------
+    // Background ellipse
+    // ----------------------------------------------
 
     this.healthEllipse.lineStyle(
       3,
@@ -479,16 +333,17 @@ export class Unit {
       Math.PI * 2,
     );
 
-    // -----------------------------------------------
-    // Current health.
-    // -----------------------------------------------
+    // ----------------------------------------------
+    // Current health
+    // ----------------------------------------------
 
     const healthRatio =
       this.getHealthRatio();
 
     const healthEndAngle =
       -Math.PI / 2 +
-      Math.PI * 2 * healthRatio;
+      Math.PI * 2 *
+        healthRatio;
 
     this.healthEllipse.lineStyle(
       4,
@@ -528,16 +383,20 @@ export class Unit {
 
       const angle =
         startAngle +
-        (endAngle - startAngle) *
-          progress;
+        (
+          endAngle -
+          startAngle
+        ) * progress;
 
       const x =
         centerX +
-        Math.cos(angle) * radiusX;
+        Math.cos(angle) *
+          radiusX;
 
       const y =
         centerY +
-        Math.sin(angle) * radiusY;
+        Math.sin(angle) *
+          radiusY;
 
       if (i === 0) {
         this.healthEllipse.moveTo(
@@ -555,8 +414,10 @@ export class Unit {
     this.healthEllipse.strokePath();
   }
 
+  // --------------------------------------------------
   // CLEANUP
   // --------------------------------------------------
+
   public destroy(): void {
     this.sprite.destroy();
     this.healthEllipse.destroy();
