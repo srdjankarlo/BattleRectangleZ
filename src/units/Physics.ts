@@ -31,10 +31,8 @@ export class Physics {
     this.mass = mass;
   }
 
-  // --------------------------------------------------
   // VELOCITY
   // --------------------------------------------------
-
   setVelocity(
     velocityX: number,
     velocityY: number,
@@ -51,10 +49,8 @@ export class Physics {
     return this.velocityY;
   }
 
-  // --------------------------------------------------
   // MOVEMENT
   // --------------------------------------------------
-
   update(deltaSeconds: number): void {
     this.x +=
       this.velocityX * deltaSeconds;
@@ -63,10 +59,8 @@ export class Physics {
       this.velocityY * deltaSeconds;
   }
 
-  // --------------------------------------------------
   // WALL COLLISION
   // --------------------------------------------------
-
   handleWallCollision(): void {
     // LEFT
     if (this.x - this.radius <= 0) {
@@ -162,10 +156,8 @@ export class Physics {
         dy / distance;
     }
 
-    // ------------------------------------------------
     // Separate overlapping units.
     // ------------------------------------------------
-
     const overlap =
       minimumDistance - distance;
 
@@ -181,10 +173,8 @@ export class Physics {
     other.y +=
       normalY * overlap / 2;
 
-    // ------------------------------------------------
     // Relative velocity.
     // ------------------------------------------------
-
     const relativeVelocityX =
       other.velocityX -
       this.velocityX;
@@ -202,10 +192,8 @@ export class Physics {
       return false;
     }
 
-    // ------------------------------------------------
     // Elastic collision.
     // ------------------------------------------------
-
     const impulse =
       (-2 * velocityAlongNormal) /
       (this.mass + other.mass);

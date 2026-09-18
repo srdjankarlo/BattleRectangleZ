@@ -1,15 +1,15 @@
 export class Health {
+  private readonly maxHealth: number;
   private currentHealth: number;
 
-  constructor(
-    private readonly maxHealth: number,
-  ) {
+  constructor(maxHealth: number) {
     if (maxHealth <= 0) {
       throw new Error(
         "Max health must be greater than 0.",
       );
     }
 
+    this.maxHealth = maxHealth;
     this.currentHealth = maxHealth;
   }
 

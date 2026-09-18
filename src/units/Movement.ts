@@ -10,17 +10,24 @@ export type MovementType =
   (typeof MovementType)[keyof typeof MovementType];
 
 export class Movement {
+  private readonly speed: number;
+
+  public readonly movementType: MovementType;
+
   private direction: number;
 
   constructor(
-    private readonly speed: number,
-    public readonly movementType: MovementType,
+    speed: number,
+    movementType: MovementType,
   ) {
     if (speed < 0) {
       throw new Error(
         "Movement speed cannot be negative.",
       );
     }
+
+    this.speed = speed;
+    this.movementType = movementType;
 
     // Choose a random starting direction.
     // Math.PI * 2 represents a full circle (2*PI = 360 degrees).
@@ -39,17 +46,9 @@ export class Movement {
       Math.random() * Math.PI * 2;
   }
 
-  // --------------------------------------------------
-  // INITIALIZATION
-  // --------------------------------------------------
-
   initialize(physics: Physics): void {
     this.updateVelocity(physics);
   }
-
-  // --------------------------------------------------
-  // UPDATE
-  // --------------------------------------------------
 
   update(
     deltaSeconds: number,
@@ -82,12 +81,13 @@ export class Movement {
   // --------------------------------------------------
 
   private updateBounce(
-    physics: Physics,
+    _physics: Physics,
   ): void {
     /*
      * BOUNCE doesn't change its direction by itself.
      *
-     * Physics changes the velocity when we hit a wall.
+     * Physics changes the velocity when the unit
+     * collides with a wall.
      */
   }
 
@@ -100,12 +100,7 @@ export class Movement {
     physics: Physics,
   ): void {
     /*
-     * Gradually turn the unit.
-     *
-     * Current starting value:
-     * 360 degrees per second.
-     *
-     * This is deliberately easy to tune.
+     * Gradually change direction.
      */
     const maximumTurnPerSecond =
       this.degreesToRadians(360);
@@ -133,7 +128,7 @@ export class Movement {
     physics: Physics,
   ): void {
     /*
-     * Deliberately change direction every frame.
+     * Change direction every frame.
      */
     const maximumJitter =
       this.degreesToRadians(25);

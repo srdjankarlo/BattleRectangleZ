@@ -1,5 +1,8 @@
 import Phaser from "phaser";
 import { MovementType, Unit } from "./units/Unit";
+import type {
+  UnitConfig,
+} from "./units/UnitConfig";
 
 interface UnitStatusRow {
   container: Phaser.GameObjects.Container;
@@ -62,54 +65,65 @@ class BattleBallzScene extends Phaser.Scene {
     );
 
     // Units
-    // ----------------------------------------------
-    // const redUnit = new Unit(
-    //   this,
-    //   "RedBounce",
-    //   100,
-    //   250,
-    //   20,
-    //   300,
-    //   100,
-    //   10,
-    //   MovementType.BOUNCE,
-    //   0xff0000,
-    //   this.arenaWidth,
-    //   this.arenaHeight,
-    // );
+    const redConfig: UnitConfig = {
+      name: "Red Bounce",
+      radius: 20,
+      speed: 300,
+      maxHealth: 100,
+      bodyAttackDamage: 10,
+      movementType: MovementType.BOUNCE,
+      color: 0xff0000,
+    };
+
+    const blueConfig: UnitConfig = {
+      name: "Blue Wander",
+      radius: 20,
+      speed: 300,
+      maxHealth: 100,
+      bodyAttackDamage: 10,
+      movementType: MovementType.WANDER,
+      color: 0x3498db,
+    };
+
+    const greenConfig: UnitConfig = {
+      name: "Green Jitter",
+      radius: 20,
+      speed: 300,
+      maxHealth: 100,
+      bodyAttackDamage: 10,
+      movementType: MovementType.JITTER,
+      color: 0x00ff66,
+    };
+
+    const redUnit = new Unit(
+      this,
+      redConfig,
+      100,
+      250,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
 
     const blueUnit = new Unit(
       this,
-      "BlueWander",
+      blueConfig,
       250,
       150,
-      20,
-      300,
-      100,
-      10,
-      MovementType.WANDER,
-      0x3498db,
       this.arenaWidth,
       this.arenaHeight,
     );
 
     const greenUnit = new Unit(
       this,
-      "GreenJitter",
+      greenConfig,
       400,
       350,
-      20,
-      300,
-      100,
-      10,
-      MovementType.JITTER,
-      0x00ff66,
       this.arenaWidth,
       this.arenaHeight,
     );
 
     this.units.push(
-      // redUnit,
+      redUnit,
       blueUnit,
       greenUnit,
     );
