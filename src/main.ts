@@ -8,8 +8,7 @@ import { MovementType, Unit } from "./units/Unit";
  * For now, BattleBall'z has only one scene: the arena.
  */
 class BattleBallzScene extends Phaser.Scene {
-  private player!: Unit;
-  private enemy!: Unit;
+  private units: Unit[] = [];
 
   // Arena dimensions.
   private readonly arenaWidth = 500;
@@ -33,39 +32,88 @@ class BattleBallzScene extends Phaser.Scene {
 
     // Arena border.
       this.add.rectangle(
-        250,
-        250,
-        500,
-        500
+        this.arenaWidth / 2,
+        this.arenaHeight / 2,
+        this.arenaWidth,
+        this.arenaHeight,
       )
-      .setStrokeStyle(20, 0x4d0feb);
+      .setStrokeStyle(6, 0x4d0feb);
 
-    // Create our first unit.
-    this.player = new Unit(
-      this,
-      this.arenaWidth / 2,
-      this.arenaHeight / 2,
-      20,                     // radius
-      450,                    // speed
-      MovementType.BOUNCE,
-      0x30A63B,               // color
-      this.arenaWidth,
-      this.arenaHeight,
+    // ----------------------------------------------
+    // Movement type labels
+    // ----------------------------------------------
+
+    this.add.text(
+      10,
+      10,
+      "RED = BOUNCE",
+      {
+        fontSize: "16px",
+      },
     );
 
-    console.log("Ball created:", this.player);
+    this.add.text(
+      10,
+      30,
+      "BLUE = WANDER",
+      {
+        fontSize: "16px",
+      },
+    );
 
-    // Enemy.
-    this.enemy = new Unit(
+    this.add.text(
+      10,
+      50,
+      "GREEN = JITTER",
+      {
+        fontSize: "16px",
+      },
+    );
+
+    // ----------------------------------------------
+    // Units
+    // ----------------------------------------------
+
+    const redUnit = new Unit(
       this,
-      400,
+      100,
       250,
       20,
       100,
       MovementType.BOUNCE,
-      0xBA2A25,
+      0xff0000,
       this.arenaWidth,
       this.arenaHeight,
+    );
+
+    const blueUnit = new Unit(
+      this,
+      250,
+      150,
+      20,
+      100,
+      MovementType.WANDER,
+      0x3498db,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
+
+    const greenUnit = new Unit(
+      this,
+      400,
+      350,
+      20,
+      100,
+      MovementType.JITTER,
+      0x00ff66,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
+
+    this.units.push(
+      redUnit,
+      blueUnit,
+      greenUnit,
     );
   }
 
@@ -76,11 +124,33 @@ class BattleBallzScene extends Phaser.Scene {
     // in pixels per second.
     const deltaSeconds = delta / 1000;
 
-    this.player.update(deltaSeconds);
-    this.enemy.update(deltaSeconds);
+    // ----------------------------------------------
+    // Update movement
+    // ----------------------------------------------
 
-    // Check whether they collide.
-    this.player.resolveCollision(this.enemy);
+    for (const unit of this.units) {
+      unit.update(deltaSeconds);
+    }
+
+    // ----------------------------------------------
+    // Check every pair of units for collision
+    // ----------------------------------------------
+
+    for (
+      let i = 0;
+      i < this.units.length;
+      i++
+    ) {
+      for (
+        let j = i + 1;
+        j < this.units.length;
+        j++
+      ) {
+        this.units[i].resolveCollision(
+          this.units[j],
+        );
+      }
+    }
   }
 }
 
