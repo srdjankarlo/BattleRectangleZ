@@ -9,6 +9,7 @@ import { MovementType, Unit } from "./units/Unit";
  */
 class BattleBallzScene extends Phaser.Scene {
   private player!: Unit;
+  private enemy!: Unit;
 
   // Arena dimensions.
   private readonly arenaWidth = 500;
@@ -45,14 +46,27 @@ class BattleBallzScene extends Phaser.Scene {
       this.arenaWidth / 2,
       this.arenaHeight / 2,
       20,                     // radius
-      150,                    // speed
+      450,                    // speed
       MovementType.BOUNCE,
-      0xff0000,               // color
+      0x30A63B,               // color
       this.arenaWidth,
       this.arenaHeight,
     );
 
     console.log("Ball created:", this.player);
+
+    // Enemy.
+    this.enemy = new Unit(
+      this,
+      400,
+      250,
+      20,
+      100,
+      MovementType.BOUNCE,
+      0xBA2A25,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
   }
 
   update(_time: number, delta: number) {
@@ -63,6 +77,10 @@ class BattleBallzScene extends Phaser.Scene {
     const deltaSeconds = delta / 1000;
 
     this.player.update(deltaSeconds);
+    this.enemy.update(deltaSeconds);
+
+    // Check whether they collide.
+    this.player.resolveCollision(this.enemy);
   }
 }
 
