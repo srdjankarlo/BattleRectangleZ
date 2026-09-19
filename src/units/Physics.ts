@@ -28,6 +28,12 @@ export class Physics {
     this.arenaWidth = arenaWidth;
     this.arenaHeight = arenaHeight;
 
+    if (mass <= 0) {
+      throw new Error(
+        "Mass must be greater than 0.",
+      );
+    }
+
     this.mass = mass;
   }
 

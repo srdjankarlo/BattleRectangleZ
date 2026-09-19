@@ -1,30 +1,41 @@
 import Phaser from "phaser";
-import {Unit} from "./units/Unit";
+
+import {
+  Unit,
+} from "./units/Unit";
+
 import {
   Characters,
 } from "./characters/Characters";
-import type {
-  UnitConfig,
-} from "./units/UnitConfig";
 
-interface UnitStatusRow {
+// --------------------------------------------------
+// UI TYPES
+// --------------------------------------------------
+
+interface UnitStatusCard {
   container: Phaser.GameObjects.Container;
-  label: Phaser.GameObjects.Text;
-  background: Phaser.GameObjects.Rectangle;
-  fill: Phaser.GameObjects.Rectangle;
+  panel: Phaser.GameObjects.Rectangle;
+  colorIndicator: Phaser.GameObjects.Arc;
+  name: Phaser.GameObjects.Text;
+  stats: Phaser.GameObjects.Text;
 }
 
-/**
- * Main game scene.
- *
- * A Phaser Scene is basically one "screen" or section of our game.
- * For now, BattleBall'z has only one scene: the arena.
- */
+// --------------------------------------------------
+// GAME SCENE
+// --------------------------------------------------
+
 class BattleBallzScene extends Phaser.Scene {
   private units: Unit[] = [];
 
-  private statusRows =
-    new Map<Unit, UnitStatusRow>();
+  private statusCards =
+    new Map<Unit, UnitStatusCard>();
+
+  // Pause state.
+  private isPaused = false;
+
+  private pauseStatusText!: Phaser.GameObjects.Text;
+  private pauseButtonBackground!: Phaser.GameObjects.Rectangle;
+  private pauseButtonText!: Phaser.GameObjects.Text;
 
   // Arena dimensions.
   private readonly arenaWidth = 500;
@@ -34,242 +45,456 @@ class BattleBallzScene extends Phaser.Scene {
     super("BattleBallzScene");
   }
 
-  create() {
-    console.log("BattleBallz scene created");
+  // --------------------------------------------------
+  // CREATE
+  // --------------------------------------------------
 
-    // Draw a simple 500x500 arena background.
+  create() {
+    // ----------------------------------------------
+    // Arena
+    // ----------------------------------------------
+
     this.add.rectangle(
       this.arenaWidth / 2,
       this.arenaHeight / 2,
       this.arenaWidth,
       this.arenaHeight,
-      0x333333
+      0x333333,
     );
 
     // Arena border.
-    this.add.rectangle(
-      this.arenaWidth / 2,
-      this.arenaHeight / 2,
-      this.arenaWidth,
-      this.arenaHeight,
-    )
-    .setStrokeStyle(20, 0x4d0feb);
+    this.add
+      .rectangle(
+        this.arenaWidth / 2,
+        this.arenaHeight / 2,
+        this.arenaWidth,
+        this.arenaHeight,
+      )
+      .setStrokeStyle(
+        6,
+        0x4d0feb,
+      );
 
-    // Title
     // ----------------------------------------------
+    // Battle Status title
+    // ----------------------------------------------
+
     this.add.text(
-      this.arenaWidth / 2 - 80,
+      10,
       510,
       "BATTLE STATUS",
       {
         fontSize: "18px",
         color: "#ffffff",
+        fontStyle: "bold",
       },
     );
 
-    // Units
-    const knight = new Unit(
-      this,
-      Characters.KNIGHT,
-      100,
-      250,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    const archer = new Unit(
-      this,
-      Characters.ARCHER,
-      250,
-      150,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    const goblin = new Unit(
-      this,
-      Characters.GOBLIN,
-      400,
-      350,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    const giant = new Unit(
-      this,
-      Characters.GIANT,
-      400,
-      350,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    const wizard = new Unit(
-      this,
-      Characters.WIZARD,
-      400,
-      350,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    const peasant = new Unit(
-      this,
-      Characters.PEASANT,
-      400,
-      350,
-      this.arenaWidth,
-      this.arenaHeight,
-    );
-
-    this.units.push(
-      knight,
-      archer,
-      goblin,
-      giant,
-      wizard,
-      peasant,
-    );
-
-    // Create a status row for each unit.
-    for (const unit of this.units) {
-      this.createStatusRow(unit);
-    }
-  }
-
-  update(_time: number, delta: number) {
-    // delta is the amount of time since the previous frame,
-    // measured in milliseconds.
-    // Convert it to seconds because our velocity is expressed
-    // in pixels per second.
-    const deltaSeconds = delta / 1000;
-
-    // Update movement
     // ----------------------------------------------
-    for (const unit of this.units) {
-      unit.update(deltaSeconds);
-    }
-
-    // Check every pair of units for collision
+    // Pause status
     // ----------------------------------------------
-    for (let i = 0; i < this.units.length; i++) {
-      for (let j = i + 1; j < this.units.length; j++) {
-        this.units[i].resolveCollision(
-          this.units[j],
-        );
-      }
-    }
 
-    // Update status UI
-    // ----------------------------------------------
-    for (const unit of this.units) {
-      this.updateStatusRow(unit);
-    }
-
-    // Remove dead units
-    // ----------------------------------------------
-    this.removeDeadUnits();
-  }
-
-  // STATUS PANEL
-  // --------------------------------------------------
-  private createStatusRow(unit: Unit): void {
-    const rowIndex =
-      this.statusRows.size;
-
-    const y =
-      540 + rowIndex * 30;
-
-    const container =
-      this.add.container(10, y);
-
-    const label =
+    this.pauseStatusText =
       this.add.text(
-        0,
-        0,
-        "",
+        10,
+        535,
+        "RUNNING — press P",
         {
-          fontSize: "14px",
-          color: "#ffffff",
+          fontSize: "12px",
+          color: "#aaaaaa",
         },
       );
 
-    const background =
+    // ----------------------------------------------
+    // Pause button
+    // ----------------------------------------------
+
+    this.pauseButtonBackground =
       this.add.rectangle(
-        300,
-        9,
-        150,
-        12,
-        0x222222,
+        435,
+        520,
+        120,
+        36,
+        0x252525,
       );
 
-    background.setOrigin(0, 0.5);
-
-    const fill =
-      this.add.rectangle(
-        300,
-        9,
-        150,
-        12,
-        0x00ff66,
+    this.pauseButtonBackground
+      .setStrokeStyle(
+        2,
+        0x777777,
       );
 
-    fill.setOrigin(0, 0.5);
+    this.pauseButtonBackground.setInteractive({
+      useHandCursor: true,
+    });
 
-    container.add([
-      label,
-      background,
-      fill,
-    ]);
+    this.pauseButtonText =
+      this.add.text(
+        435,
+        520,
+        "PAUSE [P]",
+        {
+          fontSize: "13px",
+          color: "#ffffff",
+          fontStyle: "bold",
+        },
+      );
 
-    this.statusRows.set(
-      unit,
-      {
-        container,
-        label,
-        background,
-        fill,
+    this.pauseButtonText.setOrigin(
+      0.5,
+      0.5,
+    );
+
+    this.pauseButtonBackground.on(
+      "pointerdown",
+      () => {
+        this.togglePause();
       },
     );
 
-    this.updateStatusRow(unit);
+    this.pauseButtonBackground.on(
+      "pointerover",
+      () => {
+        this.pauseButtonBackground.setFillStyle(
+          0x3a3a3a,
+        );
+      },
+    );
+
+    this.pauseButtonBackground.on(
+      "pointerout",
+      () => {
+        this.pauseButtonBackground.setFillStyle(
+          0x252525,
+        );
+      },
+    );
+
+    // ----------------------------------------------
+    // Keyboard: P
+    // ----------------------------------------------
+
+    this.input.keyboard?.on(
+      "keydown-P",
+      () => {
+        this.togglePause();
+      },
+    );
+
+    // ----------------------------------------------
+    // TEST UNITS
+    // ----------------------------------------------
+
+    const knight =
+      new Unit(
+        this,
+        Characters.KNIGHT,
+        100,
+        250,
+        this.arenaWidth,
+        this.arenaHeight,
+      );
+
+    const goblin =
+      new Unit(
+        this,
+        Characters.GOBLIN,
+        400,
+        250,
+        this.arenaWidth,
+        this.arenaHeight,
+      );
+
+    const wizard =
+      new Unit(
+        this,
+        Characters.WIZARD,
+        250,
+        150,
+        this.arenaWidth,
+        this.arenaHeight,
+      );
+
+    this.units.push(
+      knight,
+      goblin,
+      wizard,
+    );
+
+    // Create a UI card for each unit.
+    for (
+      let i = 0;
+      i < this.units.length;
+      i++
+    ) {
+      this.createStatusCard(
+        this.units[i],
+        i,
+      );
+    }
   }
 
-  private updateStatusRow(unit: Unit): void {
-    const row =
-      this.statusRows.get(unit);
+  // --------------------------------------------------
+  // UPDATE
+  // --------------------------------------------------
 
-    if (!row) {
+  update(
+    _time: number,
+    delta: number,
+  ) {
+    const deltaSeconds =
+      delta / 1000;
+
+    // ----------------------------------------------
+    // GAME SIMULATION
+    // ----------------------------------------------
+
+    if (!this.isPaused) {
+      // Update movement/combat.
+      for (const unit of this.units) {
+        unit.update(
+          deltaSeconds,
+        );
+      }
+
+      // Check collisions.
+      for (
+        let i = 0;
+        i < this.units.length;
+        i++
+      ) {
+        for (
+          let j = i + 1;
+          j < this.units.length;
+          j++
+        ) {
+          this.units[i].resolveCollision(
+            this.units[j],
+          );
+        }
+      }
+
+      // Remove dead units.
+      this.removeDeadUnits();
+    }
+
+    // ----------------------------------------------
+    // UI
+    // ----------------------------------------------
+
+    for (const unit of this.units) {
+      this.updateStatusCard(unit);
+    }
+  }
+
+  // --------------------------------------------------
+  // PAUSE
+  // --------------------------------------------------
+
+  private togglePause(): void {
+    this.isPaused =
+      !this.isPaused;
+
+    if (this.isPaused) {
+      this.pauseStatusText.setText(
+        "PAUSED — press P to resume",
+      );
+
+      this.pauseButtonText.setText(
+        "RESUME [P]",
+      );
+    } else {
+      this.pauseStatusText.setText(
+        "RUNNING — press P",
+      );
+
+      this.pauseButtonText.setText(
+        "PAUSE [P]",
+      );
+    }
+  }
+
+  // --------------------------------------------------
+  // STATUS CARD
+  // --------------------------------------------------
+
+  private createStatusCard(
+    unit: Unit,
+    index: number,
+  ): void {
+    const cardWidth = 155;
+    const cardHeight = 155;
+
+    const gap = 10;
+
+    const x =
+      10 +
+      index *
+        (cardWidth + gap);
+
+    const y = 555;
+
+    const container =
+      this.add.container(
+        x,
+        y,
+      );
+
+    // Card background.
+    const panel =
+      this.add.rectangle(
+        0,
+        0,
+        cardWidth,
+        cardHeight,
+        0x202020,
+      );
+
+    panel.setOrigin(
+      0,
+      0,
+    );
+
+    panel.setStrokeStyle(
+      2,
+      0x555555,
+    );
+
+    // Small color indicator.
+    const colorIndicator =
+      this.add.circle(
+        12,
+        14,
+        5,
+        unit.config.color,
+      );
+
+    // Unit name.
+    const name =
+      this.add.text(
+        24,
+        6,
+        unit.name.toUpperCase(),
+        {
+          fontSize: "13px",
+          color: "#ffffff",
+          fontStyle: "bold",
+        },
+      );
+
+    // Stats.
+    const stats =
+      this.add.text(
+        10,
+        28,
+        "",
+        {
+          fontSize: "11px",
+          color: "#dddddd",
+          lineSpacing: 1,
+        },
+      );
+
+    container.add([
+      panel,
+      colorIndicator,
+      name,
+      stats,
+    ]);
+
+    this.statusCards.set(
+      unit,
+      {
+        container,
+        panel,
+        colorIndicator,
+        name,
+        stats,
+      },
+    );
+
+    this.updateStatusCard(
+      unit,
+    );
+  }
+
+  // --------------------------------------------------
+  // UPDATE STATUS CARD
+  // --------------------------------------------------
+
+  private updateStatusCard(
+    unit: Unit,
+  ): void {
+    const card =
+      this.statusCards.get(unit);
+
+    if (!card) {
       return;
     }
 
-    row.label.setText(
-      `${unit.name}    HP: ${unit.getHealth()} / ${unit.getMaxHealth()}`,
+    const stats =
+      unit.config.stats;
+
+    const hp =
+      unit.getHealth();
+
+    const maxHp =
+      unit.getMaxHealth();
+
+    const shield =
+      unit.getShield();
+
+    const maxShield =
+      unit.getMaxShield();
+
+    card.name.setText(
+      unit.name.toUpperCase(),
     );
 
-    row.fill.width =
-      150 * unit.getHealthRatio();
+    card.stats.setText(
+      [
+        `HP       ${hp.toFixed(1)} / ${maxHp.toFixed(1)}`,
+        `SHIELD   ${shield.toFixed(1)} / ${maxShield.toFixed(1)}`,
+        `ARMOR    ${stats.armor}`,
+        `MAGIC R  ${stats.magicResistance}`,
+        `BODY DMG ${stats.bodyAttackDamage}`,
+        `SPEED    ${stats.speed}`,
+        `MASS     ${stats.mass}`,
+        `MOVE     ${unit.config.movementType.toUpperCase()}`,
+      ].join("\n"),
+    );
   }
 
-  // DEAD UNIT CLEANUP
   // --------------------------------------------------
+  // REMOVE DEAD UNITS
+  // --------------------------------------------------
+
   private removeDeadUnits(): void {
     const deadUnits =
       this.units.filter(
         (unit) => !unit.isAlive(),
       );
 
-    if (deadUnits.length === 0) {
+    if (
+      deadUnits.length === 0
+    ) {
       return;
     }
 
-    for (const unit of deadUnits) {
-      const row =
-        this.statusRows.get(unit);
+    for (
+      const unit of deadUnits
+    ) {
+      const card =
+        this.statusCards.get(
+          unit,
+        );
 
-      if (row) {
-        row.container.destroy();
-        this.statusRows.delete(unit);
+      if (card) {
+        card.container.destroy();
+
+        this.statusCards.delete(
+          unit,
+        );
       }
 
       unit.destroy();
@@ -277,23 +502,32 @@ class BattleBallzScene extends Phaser.Scene {
 
     this.units =
       this.units.filter(
-        (unit) => unit.isAlive(),
+        (unit) =>
+          unit.isAlive(),
       );
   }
 }
 
-// Phaser configuration
 // --------------------------------------------------
-const config: Phaser.Types.Core.GameConfig = {
+// PHASER CONFIGURATION
+// --------------------------------------------------
+
+const config:
+  Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
 
   width: 500,
-  // 500 arena + space underneath for status panel.
-  height: 1000,
+
+  // 500px arena + status UI underneath.
+  height: 750,
 
   backgroundColor: "#000000",
 
   scene: BattleBallzScene,
 };
+
+// --------------------------------------------------
+// START GAME
+// --------------------------------------------------
 
 new Phaser.Game(config);

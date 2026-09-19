@@ -20,17 +20,13 @@ import type {
   UnitConfig,
 } from "./UnitConfig";
 
-// Re-export MovementType so existing imports can still
-// use:
-//
-// import { MovementType } from "./units/Unit";
-export {
-  MovementType,
-} from "./Movement";
+import {
+  DamageType,
+} from "./Damage";
 
 export class Unit {
   // --------------------------------------------------
-  // Visual
+  // VISUAL
   // --------------------------------------------------
 
   public readonly sprite:
@@ -40,7 +36,7 @@ export class Unit {
     Phaser.GameObjects.Graphics;
 
   // --------------------------------------------------
-  // Configuration
+  // CONFIGURATION
   // --------------------------------------------------
 
   public readonly config:
@@ -49,7 +45,7 @@ export class Unit {
   public readonly name: string;
 
   // --------------------------------------------------
-  // Game systems
+  // SYSTEMS
   // --------------------------------------------------
 
   public readonly movement:
@@ -72,60 +68,61 @@ export class Unit {
     arenaWidth: number,
     arenaHeight: number,
   ) {
-    // Store the configuration.
     this.config = config;
-
     this.name = config.name;
 
+    const stats =
+      config.stats;
+
     // ----------------------------------------------
-    // Create systems
+    // Systems
     // ----------------------------------------------
 
     this.health =
       new Health(
-        config.maxHealth,
+        stats.maxHealth,
+        stats.maxShield,
       );
 
     this.combat =
       new Combat(
-        config.bodyAttackDamage,
+        stats.bodyAttackDamage,
       );
 
     this.physics =
       new Physics(
         x,
         y,
-        config.radius,
+        stats.radius,
         arenaWidth,
         arenaHeight,
-        config.mass ?? 1,
+        stats.mass,
       );
 
     this.movement =
       new Movement(
-        config.speed,
+        stats.speed,
         config.movementType,
       );
 
-    // Give Physics its initial velocity.
     this.movement.initialize(
       this.physics,
     );
 
     // ----------------------------------------------
-    // Create visual object
+    // Visual
     // ----------------------------------------------
 
     this.sprite =
       scene.add.circle(
         x,
         y,
-        config.radius,
+        stats.radius,
         config.color,
       );
 
     // ----------------------------------------------
-    // Create health ellipse
+    // Health ellipse
     // ----------------------------------------------
 
     this.healthEllipse =
@@ -146,29 +143,29 @@ export class Unit {
       deltaSeconds,
     );
 
-    // Dead units don't move.
+    // Dead units do nothing.
     if (!this.isAlive()) {
       return;
     }
 
-    // Movement calculates how the unit should move.
+    // Movement decides velocity.
     this.movement.update(
       deltaSeconds,
       this.physics,
     );
 
-    // Physics actually moves the unit.
+    // Physics moves the unit.
     this.physics.update(
       deltaSeconds,
     );
 
-    // Keep unit inside arena.
+    // Physics keeps it inside the arena.
     this.physics.handleWallCollision();
 
-    // Copy physics position to Phaser object.
+    // Move visual representation.
     this.syncSpriteToPhysics();
 
-    // Update health ellipse position.
+    // Move health ellipse.
     this.updateHealthEllipse();
   }
 
@@ -187,7 +184,7 @@ export class Unit {
     }
 
     // ----------------------------------------------
-    // Physics
+    // PHYSICAL COLLISION
     // ----------------------------------------------
 
     const collisionOccurred =
@@ -200,11 +197,7 @@ export class Unit {
     }
 
     // ----------------------------------------------
-    // Capture BOTH attack states before applying
-    // either attack.
-    //
-    // This is important because both units should
-    // be able to kill each other in the same collision.
+    // CAPTURE BOTH ATTACK STATES FIRST
     // ----------------------------------------------
 
     const thisCanAttack =
@@ -213,11 +206,11 @@ export class Unit {
     const otherCanAttack =
       other.combat.canDealBodyDamage();
 
-    const otherWasAlive =
-      other.isAlive();
-
     const thisWasAlive =
       this.isAlive();
+
+    const otherWasAlive =
+      other.isAlive();
 
     // ----------------------------------------------
     // THIS -> OTHER
@@ -227,7 +220,9 @@ export class Unit {
       thisCanAttack &&
       otherWasAlive
     ) {
-      other.takeDamage(
+      this.attack(
+        other,
+        DamageType.PHYSICAL,
         this.combat.bodyAttackDamage,
       );
 
@@ -243,13 +238,44 @@ export class Unit {
       otherCanAttack &&
       thisWasAlive
     ) {
-      this.takeDamage(
+      other.attack(
+        this,
+        DamageType.PHYSICAL,
         other.combat.bodyAttackDamage,
       );
 
       other.combat
         .startBodyDamageCooldown();
     }
+  }
+
+  // --------------------------------------------------
+  // ATTACK
+  // --------------------------------------------------
+
+  private attack(
+    target: Unit,
+    damageType: DamageType,
+    rawDamage: number,
+  ): void {
+    if (!this.isAlive()) {
+      return;
+    }
+
+    if (!target.isAlive()) {
+      return;
+    }
+
+    const finalDamage =
+      this.combat.calculateDamage(
+        rawDamage,
+        damageType,
+        target.config.stats,
+      );
+
+    target.takeDamage(
+      finalDamage,
+    );
   }
 
   // --------------------------------------------------
@@ -263,8 +289,15 @@ export class Unit {
       return;
     }
 
-    this.health.takeDamage(
-      amount,
+    const result =
+      this.health.takeDamage(
+        amount,
+      );
+
+    console.log(
+      `${this.name} took ${result.totalDamage.toFixed(1)} damage.`,
+      `Shield: ${result.shieldDamage.toFixed(1)}`,
+      `HP: ${result.healthDamage.toFixed(1)}`,
     );
 
     this.updateHealthEllipse();
@@ -287,18 +320,7 @@ export class Unit {
   }
 
   // --------------------------------------------------
-  // POSITION
-  // --------------------------------------------------
-
-  private syncSpriteToPhysics(): void {
-    this.sprite.setPosition(
-      this.physics.x,
-      this.physics.y,
-    );
-  }
-
-  // --------------------------------------------------
-  // HEALTH
+  // STATE
   // --------------------------------------------------
 
   public isAlive(): boolean {
@@ -315,6 +337,25 @@ export class Unit {
 
   public getHealthRatio(): number {
     return this.health.getHealthRatio();
+  }
+
+  public getShield(): number {
+    return this.health.getCurrentShield();
+  }
+
+  public getMaxShield(): number {
+    return this.health.getMaxShield();
+  }
+
+  // --------------------------------------------------
+  // POSITION
+  // --------------------------------------------------
+
+  private syncSpriteToPhysics(): void {
+    this.sprite.setPosition(
+      this.physics.x,
+      this.physics.y,
+    );
   }
 
   // --------------------------------------------------
@@ -340,7 +381,10 @@ export class Unit {
     const radiusY =
       this.physics.radius + 12;
 
-    // Background ellipse.
+    // ----------------------------------------------
+    // Background
+    // ----------------------------------------------
+
     this.healthEllipse.lineStyle(
       3,
       0x444444,
@@ -356,7 +400,10 @@ export class Unit {
       Math.PI * 2,
     );
 
-    // Current health.
+    // ----------------------------------------------
+    // Health
+    // ----------------------------------------------
+
     const healthRatio =
       this.getHealthRatio();
 
@@ -442,7 +489,6 @@ export class Unit {
 
   public destroy(): void {
     this.sprite.destroy();
-
     this.healthEllipse.destroy();
   }
 }

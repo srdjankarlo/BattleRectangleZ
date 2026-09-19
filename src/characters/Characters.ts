@@ -10,11 +10,19 @@ export const Characters = {
   PEASANT: {
     name: "Peasant",
 
-    radius: 18,
-    speed: 150,
+    stats: {
+      radius: 18,
+      speed: 150,
+      mass: 1,
 
-    maxHealth: 100,
-    bodyAttackDamage: 8,
+      maxHealth: 100,
+      bodyAttackDamage: 8,
+
+      armor: 0,
+      magicResistance: 0,
+
+      maxShield: 0,
+    },
 
     movementType: MovementType.BOUNCE,
 
@@ -24,27 +32,41 @@ export const Characters = {
   KNIGHT: {
     name: "Knight",
 
-    radius: 22,
-    speed: 120,
+    stats: {
+      radius: 22,
+      speed: 120,
+      mass: 2,
 
-    maxHealth: 100,
-    bodyAttackDamage: 15,
+      maxHealth: 100,
+      bodyAttackDamage: 15,
+
+      armor: 10,
+      magicResistance: 5,
+
+      maxShield: 0,
+    },
 
     movementType: MovementType.BOUNCE,
 
     color: 0x888888,
-
-    mass: 2,
   },
 
   ARCHER: {
     name: "Archer",
 
-    radius: 19,
-    speed: 140,
+    stats: {
+      radius: 19,
+      speed: 140,
+      mass: 1,
 
-    maxHealth: 80,
-    bodyAttackDamage: 6,
+      maxHealth: 80,
+      bodyAttackDamage: 6,
+
+      armor: 3,
+      magicResistance: 5,
+
+      maxShield: 0,
+    },
 
     movementType: MovementType.WANDER,
 
@@ -54,11 +76,19 @@ export const Characters = {
   WIZARD: {
     name: "Wizard",
 
-    radius: 20,
-    speed: 100,
+    stats: {
+      radius: 20,
+      speed: 100,
+      mass: 1,
 
-    maxHealth: 80,
-    bodyAttackDamage: 4,
+      maxHealth: 80,
+      bodyAttackDamage: 4,
+
+      armor: 2,
+      magicResistance: 15,
+
+      maxShield: 30,
+    },
 
     movementType: MovementType.JITTER,
 
@@ -68,33 +98,50 @@ export const Characters = {
   GIANT: {
     name: "Giant",
 
-    radius: 35,
-    speed: 70,
+    stats: {
+      radius: 35,
+      speed: 70,
+      mass: 5,
 
-    maxHealth: 500,
-    bodyAttackDamage: 30,
+      maxHealth: 500,
+      bodyAttackDamage: 30,
+
+      armor: 20,
+      magicResistance: 10,
+
+      maxShield: 0,
+    },
 
     movementType: MovementType.BOUNCE,
 
     color: 0x795548,
-
-    mass: 5,
   },
 
   GOBLIN: {
     name: "Goblin",
 
-    radius: 16,
-    speed: 180,
+    stats: {
+      radius: 16,
+      speed: 180,
+      mass: 1,
 
-    maxHealth: 50,
-    bodyAttackDamage: 8,
+      maxHealth: 50,
+      bodyAttackDamage: 8,
+
+      armor: 2,
+      magicResistance: 0,
+
+      maxShield: 0,
+    },
 
     movementType: MovementType.JITTER,
 
     color: 0x2ecc71,
   },
-} satisfies Record<string, UnitConfig>;
+} satisfies Record<
+  string,
+  UnitConfig
+>;
 
 export type CharacterId =
   keyof typeof Characters;

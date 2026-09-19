@@ -1,42 +1,27 @@
-import type { MovementType } from "./Movement";
+import type {
+  MovementType,
+} from "./Movement";
+
+import type {
+  UnitStats,
+} from "./Stats";
 
 /**
- * Configuration that describes a unit's basic properties.
+ * Describes what kind of unit this is.
  *
- * This contains DATA about the unit.
+ * UnitConfig is DATA.
  *
- * It does not contain the unit's current position,
- * current HP, or current velocity.
+ * It describes the character template,
+ * not the character's current state during a match.
  */
 export interface UnitConfig {
-  // Display name.
   name: string;
 
-  // Size of the unit's circle.
-  radius: number;
+  stats: UnitStats;
 
-  // Movement speed in pixels per second.
-  speed: number;
-
-  // Maximum health.
-  maxHealth: number;
-
-  // Damage caused when the unit physically hits
-  // another unit with its body.
-  bodyAttackDamage: number;
-
-  // How the unit moves.
   movementType: MovementType;
 
-  // Color used by our prototype.
-  //
-  // Later this will probably be replaced by sprites,
-  // animations, skins, etc.
+  // Temporary prototype representation.
+  // Eventually this will become sprites/animations.
   color: number;
-
-  // How strongly the unit behaves in physical
-  // collisions.
-  //
-  // Optional because most units will use 1 for now.
-  mass?: number;
 }
