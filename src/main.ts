@@ -1,5 +1,8 @@
 import Phaser from "phaser";
-import { MovementType, Unit } from "./units/Unit";
+import {Unit} from "./units/Unit";
+import {
+  Characters,
+} from "./characters/Characters";
 import type {
   UnitConfig,
 } from "./units/UnitConfig";
@@ -65,57 +68,54 @@ class BattleBallzScene extends Phaser.Scene {
     );
 
     // Units
-    const redConfig: UnitConfig = {
-      name: "Red Bounce",
-      radius: 20,
-      speed: 300,
-      maxHealth: 100,
-      bodyAttackDamage: 10,
-      movementType: MovementType.BOUNCE,
-      color: 0xff0000,
-    };
-
-    const blueConfig: UnitConfig = {
-      name: "Blue Wander",
-      radius: 20,
-      speed: 300,
-      maxHealth: 100,
-      bodyAttackDamage: 10,
-      movementType: MovementType.WANDER,
-      color: 0x3498db,
-    };
-
-    const greenConfig: UnitConfig = {
-      name: "Green Jitter",
-      radius: 20,
-      speed: 300,
-      maxHealth: 100,
-      bodyAttackDamage: 10,
-      movementType: MovementType.JITTER,
-      color: 0x00ff66,
-    };
-
-    const redUnit = new Unit(
+    const knight = new Unit(
       this,
-      redConfig,
+      Characters.KNIGHT,
       100,
       250,
       this.arenaWidth,
       this.arenaHeight,
     );
 
-    const blueUnit = new Unit(
+    const archer = new Unit(
       this,
-      blueConfig,
+      Characters.ARCHER,
       250,
       150,
       this.arenaWidth,
       this.arenaHeight,
     );
 
-    const greenUnit = new Unit(
+    const goblin = new Unit(
       this,
-      greenConfig,
+      Characters.GOBLIN,
+      400,
+      350,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
+
+    const giant = new Unit(
+      this,
+      Characters.GIANT,
+      400,
+      350,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
+
+    const wizard = new Unit(
+      this,
+      Characters.WIZARD,
+      400,
+      350,
+      this.arenaWidth,
+      this.arenaHeight,
+    );
+
+    const peasant = new Unit(
+      this,
+      Characters.PEASANT,
       400,
       350,
       this.arenaWidth,
@@ -123,9 +123,12 @@ class BattleBallzScene extends Phaser.Scene {
     );
 
     this.units.push(
-      redUnit,
-      blueUnit,
-      greenUnit,
+      knight,
+      archer,
+      goblin,
+      giant,
+      wizard,
+      peasant,
     );
 
     // Create a status row for each unit.
@@ -286,7 +289,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
   width: 500,
   // 500 arena + space underneath for status panel.
-  height: 640,
+  height: 1000,
 
   backgroundColor: "#000000",
 
