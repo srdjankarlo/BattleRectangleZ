@@ -8,16 +8,20 @@ import {
   Characters,
 } from "./characters/Characters";
 
+import type {
+  UnitConfig,
+} from "./units/UnitConfig";
+
 // --------------------------------------------------
 // UI TYPES
 // --------------------------------------------------
 
-interface UnitStatusCard {
-  container: Phaser.GameObjects.Container;
-  panel: Phaser.GameObjects.Rectangle;
-  colorIndicator: Phaser.GameObjects.Arc;
-  name: Phaser.GameObjects.Text;
-  stats: Phaser.GameObjects.Text;
+interface StatusColumn {
+  key: string;
+  label: string;
+  width: number;
+  shouldShow: (unit: Unit) => boolean;
+  getValue: (unit: Unit) => string;
 }
 
 // --------------------------------------------------
@@ -27,8 +31,12 @@ interface UnitStatusCard {
 class BattleBallzScene extends Phaser.Scene {
   private units: Unit[] = [];
 
-  private statusCards =
-    new Map<Unit, UnitStatusCard>();
+  private statusRows =
+    new Map<Unit, Phaser.GameObjects.Text>();
+
+  private statusColumns: StatusColumn[] = [];
+
+  private unitNameCounters = new Map<string, number>();
 
   // Pause state.
   private isPaused = false;
@@ -38,8 +46,8 @@ class BattleBallzScene extends Phaser.Scene {
   private pauseButtonText!: Phaser.GameObjects.Text;
 
   // Arena dimensions.
-  private readonly arenaWidth = 500;
-  private readonly arenaHeight = 500;
+  private readonly arenaWidth = 300;
+  private readonly arenaHeight = 300;
 
   constructor() {
     super("BattleBallzScene");
@@ -185,53 +193,69 @@ class BattleBallzScene extends Phaser.Scene {
     // TEST UNITS
     // ----------------------------------------------
 
-    const knight =
-      new Unit(
-        this,
-        Characters.KNIGHT,
-        100,
-        250,
-        this.arenaWidth,
-        this.arenaHeight,
-      );
+    const knight1 = this.createUnit(Characters.KNIGHT, 100, 250);
+    const knight2 = this.createUnit(Characters.KNIGHT, 100, 250);
 
-    const goblin =
-      new Unit(
-        this,
-        Characters.GOBLIN,
-        400,
-        250,
-        this.arenaWidth,
-        this.arenaHeight,
-      );
+    // const knight1 =
+    //   new Unit(
+    //     this,
+    //     Characters.KNIGHT,
+    //     100,
+    //     250,
+    //     this.arenaWidth,
+    //     this.arenaHeight,
+    //   );
+    
+    // const knight2 =
+    //   new Unit(
+    //     this,
+    //     Characters.KNIGHT,
+    //     100,
+    //     250,
+    //     this.arenaWidth,
+    //     this.arenaHeight,
+    //   );
 
-    const wizard =
-      new Unit(
-        this,
-        Characters.WIZARD,
-        250,
-        150,
-        this.arenaWidth,
-        this.arenaHeight,
-      );
+    // const goblin1 =
+    //   new Unit(
+    //     this,
+    //     Characters.GOBLIN,
+    //     400,
+    //     250,
+    //     this.arenaWidth,
+    //     this.arenaHeight,
+    //   );
+    
+    // const goblin2 =
+    //   new Unit(
+    //     this,
+    //     Characters.GOBLIN,
+    //     400,
+    //     250,
+    //     this.arenaWidth,
+    //     this.arenaHeight,
+    //   );
+
+    // const wizard =
+    //   new Unit(
+    //     this,
+    //     Characters.WIZARD,
+    //     250,
+    //     150,
+    //     this.arenaWidth,
+    //     this.arenaHeight,
+    //   );
 
     this.units.push(
-      knight,
-      goblin,
-      wizard,
+      knight1,
+      knight2,
+      // goblin1,
+      // goblin2,
+      // wizard,
     );
 
-    // Create a UI card for each unit.
-    for (
-      let i = 0;
-      i < this.units.length;
-      i++
-    ) {
-      this.createStatusCard(
-        this.units[i],
-        i,
-      );
-    }
+    // Create a UI for each unit.
+    this.createStatusTable();
   }
 
   // --------------------------------------------------
@@ -282,9 +306,56 @@ class BattleBallzScene extends Phaser.Scene {
     // UI
     // ----------------------------------------------
 
-    for (const unit of this.units) {
-      this.updateStatusCard(unit);
+    this.updateStatusRows();
+  }
+
+  private createUnit(
+    config: UnitConfig,
+    x: number,
+    y: number,
+  ): Unit {
+    const baseName =
+      config.name;
+
+    const currentCount =
+      this.unitNameCounters.get(
+        baseName,
+      ) ?? 0;
+
+    const instanceNumber =
+      currentCount + 1;
+
+    this.unitNameCounters.set(
+      baseName,
+      instanceNumber,
+    );
+
+    return new Unit(
+      this,
+      config,
+      x,
+      y,
+      this.arenaWidth,
+      this.arenaHeight,
+      instanceNumber,
+    );
+  }
+
+  private getUnitDisplayName(
+    unit: Unit,
+  ): string {
+    const sameTypeCount =
+      this.units.filter(
+        (otherUnit) =>
+          otherUnit.name ===
+          unit.name,
+      ).length;
+
+    if (sameTypeCount <= 1) {
+      return unit.name;
     }
+
+    return `${unit.name} ${unit.instanceNumber}`;
   }
 
   // --------------------------------------------------
@@ -315,154 +386,251 @@ class BattleBallzScene extends Phaser.Scene {
   }
 
   // --------------------------------------------------
-  // STATUS CARD
+  // STATUS UI
   // --------------------------------------------------
 
-  private createStatusCard(
-    unit: Unit,
-    index: number,
-  ): void {
-    const cardWidth = 155;
-    const cardHeight = 155;
-
-    const gap = 10;
-
-    const x =
-      10 +
-      index *
-        (cardWidth + gap);
-
-    const y = 555;
-
-    const container =
-      this.add.container(
-        x,
-        y,
-      );
-
-    // Card background.
-    const panel =
-      this.add.rectangle(
-        0,
-        0,
-        cardWidth,
-        cardHeight,
-        0x202020,
-      );
-
-    panel.setOrigin(
-      0,
-      0,
-    );
-
-    panel.setStrokeStyle(
-      2,
-      0x555555,
-    );
-
-    // Small color indicator.
-    const colorIndicator =
-      this.add.circle(
-        12,
-        14,
-        5,
-        unit.config.color,
-      );
-
-    // Unit name.
-    const name =
-      this.add.text(
-        24,
-        6,
-        unit.name.toUpperCase(),
-        {
-          fontSize: "13px",
-          color: "#ffffff",
-          fontStyle: "bold",
-        },
-      );
-
-    // Stats.
-    const stats =
-      this.add.text(
-        10,
-        28,
-        "",
-        {
-          fontSize: "11px",
-          color: "#dddddd",
-          lineSpacing: 1,
-        },
-      );
-
-    container.add([
-      panel,
-      colorIndicator,
-      name,
-      stats,
-    ]);
-
-    this.statusCards.set(
-      unit,
+  private createStatusTable(): void {
+    const columns: StatusColumn[] = [
       {
-        container,
-        panel,
-        colorIndicator,
-        name,
-        stats,
+        key: "unit",
+        label: "UNIT",
+        width: 14,
+        shouldShow: () => true,
+        getValue: (unit) =>
+          this.getUnitDisplayName(
+            unit,
+          ).toUpperCase(),
+      },
+
+      {
+        key: "hp",
+        label: "HP",
+        width: 14,
+        shouldShow: () => true,
+        getValue: (unit) =>
+          `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`,
+      },
+
+      {
+        key: "shield",
+        label: "SHLD",
+        width: 14,
+        shouldShow: (unit) =>
+          unit.getMaxShield() > 0,
+        getValue: (unit) =>
+          unit.getMaxShield() > 0
+            ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}`
+            : "",
+      },
+
+      {
+        key: "armor",
+        label: "ARMR",
+        width: 6,
+        shouldShow: (unit) =>
+          unit.config.stats.armor > 0,
+        getValue: (unit) =>
+          unit.config.stats.armor > 0
+            ? unit.config.stats.armor.toString()
+            : "",
+      },
+
+      {
+        key: "mr",
+        label: "MR",
+        width: 5,
+        shouldShow: (unit) =>
+          unit.config.stats.magicResistance > 0,
+        getValue: (unit) =>
+          unit.config.stats.magicResistance > 0
+            ? unit.config.stats.magicResistance.toString()
+            : "",
+      },
+
+      {
+        key: "bdmg",
+        label: "BDMG",
+        width: 7,
+        shouldShow: (unit) =>
+          unit.config.stats.bodyAttackDamage > 0,
+        getValue: (unit) =>
+          unit.config.stats.bodyAttackDamage > 0
+            ? unit.config.stats.bodyAttackDamage.toString()
+            : "",
+      },
+
+      {
+        key: "ms",
+        label: "MS",
+        width: 6,
+        shouldShow: (unit) =>
+          unit.config.stats.speed > 0,
+        getValue: (unit) =>
+          unit.config.stats.speed > 0
+            ? unit.config.stats.speed.toString()
+            : "",
+      },
+
+      {
+        key: "mass",
+        label: "MASS",
+        width: 6,
+        shouldShow: (unit) =>
+          unit.config.stats.mass > 0,
+        getValue: (unit) =>
+          unit.config.stats.mass > 0
+            ? unit.config.stats.mass.toString()
+            : "",
+      },
+
+      {
+        key: "move",
+        label: "MOVE",
+        width: 10,
+        shouldShow: () => true,
+        getValue: (unit) =>
+          unit.config.movementType.toUpperCase(),
+      },
+    ];
+
+    /*
+    * Show a column only if at least one unit actually
+    * has that stat.
+    */
+    this.statusColumns =
+      columns.filter(
+        (column) =>
+          column.shouldShow(
+            this.units[0],
+          ) ||
+          this.units.some(
+            (unit) =>
+              column.shouldShow(unit),
+          ),
+      );
+
+    // ----------------------------------------------
+    // Table background
+    // ----------------------------------------------
+
+    const tableX = 8;
+    const tableY = 555;
+
+    const rowHeight = 20;
+
+    const tableHeight =
+      rowHeight *
+      (this.units.length + 1);
+
+    this.add
+      .rectangle(
+        tableX,
+        tableY,
+        484,
+        tableHeight,
+        0x202020,
+      )
+      .setOrigin(0, 0)
+      .setStrokeStyle(
+        1,
+        0x555555,
+      );
+
+    // ----------------------------------------------
+    // Header
+    // ----------------------------------------------
+
+    const header =
+      this.formatStatusLine(
+        this.statusColumns,
+        (column) =>
+          column.label,
+      );
+
+    this.add.text(
+      tableX + 8,
+      tableY + 4,
+      header,
+      {
+        fontFamily: "monospace",
+        fontSize: "10px",
+        color: "#ffffff",
+        fontStyle: "bold",
       },
     );
 
-    this.updateStatusCard(
-      unit,
-    );
+    // ----------------------------------------------
+    // Unit rows
+    // ----------------------------------------------
+
+    for (
+      let i = 0;
+      i < this.units.length;
+      i++
+    ) {
+      const unit =
+        this.units[i];
+
+      const row =
+        this.add.text(
+          tableX + 8,
+          tableY +
+            rowHeight *
+              (i + 1) +
+            4,
+          this.formatStatusLine(
+            this.statusColumns,
+            (column) =>
+              column.getValue(unit),
+          ),
+          {
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "#dddddd",
+          },
+        );
+
+      this.statusRows.set(
+        unit,
+        row,
+      );
+    }
   }
 
-  // --------------------------------------------------
-  // UPDATE STATUS CARD
-  // --------------------------------------------------
+  private formatStatusLine(
+    columns: StatusColumn[],
+    getValue: (
+      column: StatusColumn,
+    ) => string,
+  ): string {
+    return columns
+      .map(
+        (column) => {
+          const value =
+            getValue(column);
 
-  private updateStatusCard(
-    unit: Unit,
-  ): void {
-    const card =
-      this.statusCards.get(unit);
+          return value.padEnd(
+            column.width,
+            " ",
+          );
+        },
+      )
+      .join(" ");
+  }
 
-    if (!card) {
-      return;
+  private updateStatusRows(): void {
+    for (
+      const [unit, row]
+      of this.statusRows
+    ) {
+      row.setText(
+        this.formatStatusLine(
+          this.statusColumns,
+          (column) =>
+            column.getValue(unit),
+        ),
+      );
     }
-
-    const stats =
-      unit.config.stats;
-
-    const hp =
-      unit.getHealth();
-
-    const maxHp =
-      unit.getMaxHealth();
-
-    const shield =
-      unit.getShield();
-
-    const maxShield =
-      unit.getMaxShield();
-
-    card.name.setText(
-      unit.name.toUpperCase(),
-    );
-
-    card.stats.setText(
-      [
-        `HP       ${hp.toFixed(1)} / ${maxHp.toFixed(1)}`,
-        `SHIELD   ${shield.toFixed(1)} / ${maxShield.toFixed(1)}`,
-        `ARMOR    ${stats.armor}`,
-        `MAGIC R  ${stats.magicResistance}`,
-        `BODY DMG ${stats.bodyAttackDamage}`,
-        `SPEED    ${stats.speed}`,
-        `MASS     ${stats.mass}`,
-        `MOVE     ${unit.config.movementType.toUpperCase()}`,
-      ].join("\n"),
-    );
   }
 
   // --------------------------------------------------
@@ -484,17 +652,13 @@ class BattleBallzScene extends Phaser.Scene {
     for (
       const unit of deadUnits
     ) {
-      const card =
-        this.statusCards.get(
-          unit,
-        );
+      const row =
+        this.statusRows.get(unit);
 
-      if (card) {
-        card.container.destroy();
+      if (row) {
+        row.destroy();
 
-        this.statusCards.delete(
-          unit,
-        );
+        this.statusRows.delete(unit);
       }
 
       unit.destroy();

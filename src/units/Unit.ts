@@ -32,8 +32,8 @@ export class Unit {
   public readonly sprite:
     Phaser.GameObjects.Arc;
 
-  private readonly healthEllipse:
-    Phaser.GameObjects.Graphics;
+  private readonly healthCircle:
+  Phaser.GameObjects.Graphics;
 
   // --------------------------------------------------
   // CONFIGURATION
@@ -43,6 +43,7 @@ export class Unit {
     Readonly<UnitConfig>;
 
   public readonly name: string;
+  public readonly instanceNumber: number;
 
   // --------------------------------------------------
   // SYSTEMS
@@ -67,9 +68,11 @@ export class Unit {
     y: number,
     arenaWidth: number,
     arenaHeight: number,
+    instanceNumber: number,
   ) {
     this.config = config;
     this.name = config.name;
+    this.instanceNumber = instanceNumber;
 
     const stats =
       config.stats;
@@ -125,10 +128,10 @@ export class Unit {
     // Health ellipse
     // ----------------------------------------------
 
-    this.healthEllipse =
+    this.healthCircle =
       scene.add.graphics();
 
-    this.updateHealthEllipse();
+    this.updateHealthCircle();
   }
 
   // --------------------------------------------------
@@ -166,7 +169,7 @@ export class Unit {
     this.syncSpriteToPhysics();
 
     // Move health ellipse.
-    this.updateHealthEllipse();
+    this.updateHealthCircle();
   }
 
   // --------------------------------------------------
@@ -197,7 +200,7 @@ export class Unit {
     }
 
     // ----------------------------------------------
-    // CAPTURE BOTH ATTACK STATES FIRST
+    // CAPTURE ATTACK STATES BEFORE DAMAGE
     // ----------------------------------------------
 
     const thisCanAttack =
@@ -212,18 +215,55 @@ export class Unit {
     const otherWasAlive =
       other.isAlive();
 
-    // ----------------------------------------------
-    // THIS -> OTHER
-    // ----------------------------------------------
+    /*
+    * IMPORTANT:
+    *
+    * Calculate BOTH damage amounts first.
+    *
+    * We do not change either unit's HP yet.
+    */
+    let thisDamage = 0;
+    let otherDamage = 0;
 
     if (
       thisCanAttack &&
       otherWasAlive
     ) {
-      this.attack(
-        other,
-        DamageType.PHYSICAL,
-        this.combat.bodyAttackDamage,
+      thisDamage =
+        this.combat.calculateDamage(
+          this.combat.bodyAttackDamage,
+          DamageType.PHYSICAL,
+          other.config.stats,
+        );
+    }
+
+    if (
+      otherCanAttack &&
+      thisWasAlive
+    ) {
+      otherDamage =
+        other.combat.calculateDamage(
+          other.combat.bodyAttackDamage,
+          DamageType.PHYSICAL,
+          this.config.stats,
+        );
+    }
+
+    /*
+    * BOTH attacks have now been calculated.
+    *
+    * Even if one attack kills its target, the other
+    * attack has already been determined and will still
+    * happen.
+    */
+
+    // ----------------------------------------------
+    // APPLY THIS -> OTHER
+    // ----------------------------------------------
+
+    if (thisDamage > 0) {
+      other.takeDamage(
+        thisDamage,
       );
 
       this.combat
@@ -231,51 +271,17 @@ export class Unit {
     }
 
     // ----------------------------------------------
-    // OTHER -> THIS
+    // APPLY OTHER -> THIS
     // ----------------------------------------------
 
-    if (
-      otherCanAttack &&
-      thisWasAlive
-    ) {
-      other.attack(
-        this,
-        DamageType.PHYSICAL,
-        other.combat.bodyAttackDamage,
+    if (otherDamage > 0) {
+      this.takeDamage(
+        otherDamage,
       );
 
       other.combat
         .startBodyDamageCooldown();
     }
-  }
-
-  // --------------------------------------------------
-  // ATTACK
-  // --------------------------------------------------
-
-  private attack(
-    target: Unit,
-    damageType: DamageType,
-    rawDamage: number,
-  ): void {
-    if (!this.isAlive()) {
-      return;
-    }
-
-    if (!target.isAlive()) {
-      return;
-    }
-
-    const finalDamage =
-      this.combat.calculateDamage(
-        rawDamage,
-        damageType,
-        target.config.stats,
-      );
-
-    target.takeDamage(
-      finalDamage,
-    );
   }
 
   // --------------------------------------------------
@@ -300,7 +306,7 @@ export class Unit {
       `HP: ${result.healthDamage.toFixed(1)}`,
     );
 
-    this.updateHealthEllipse();
+    this.updateHealthCircle();
 
     if (!this.isAlive()) {
       this.die();
@@ -314,7 +320,7 @@ export class Unit {
   private die(): void {
     this.sprite.setVisible(false);
 
-    this.healthEllipse.setVisible(
+    this.healthCircle.setVisible(
       false,
     );
   }
@@ -359,11 +365,11 @@ export class Unit {
   }
 
   // --------------------------------------------------
-  // HEALTH ELLIPSE
+  // HEALTH CIRCLE
   // --------------------------------------------------
 
-  private updateHealthEllipse(): void {
-    this.healthEllipse.clear();
+  private updateHealthCircle(): void {
+    this.healthCircle.clear();
 
     if (!this.isAlive()) {
       return;
@@ -375,69 +381,192 @@ export class Unit {
     const centerY =
       this.physics.y;
 
-    const radiusX =
-      this.physics.radius + 8;
-
-    const radiusY =
-      this.physics.radius + 12;
+    /*
+    * Keep the HP circle INSIDE the unit body.
+    *
+    * Example:
+    * unit radius = 20
+    * HP circle radius = 16
+    */
+    const circleRadius =
+      Math.max(
+        2,
+        this.physics.radius - 4,
+      );
 
     // ----------------------------------------------
-    // Background
+    // Background ring
     // ----------------------------------------------
 
-    this.healthEllipse.lineStyle(
-      3,
-      0x444444,
+    this.healthCircle.lineStyle(
+      2,
+      0x222222,
       1,
     );
 
-    this.drawEllipse(
+    this.drawHealthCircle(
       centerX,
       centerY,
-      radiusX,
-      radiusY,
+      circleRadius,
       0,
       Math.PI * 2,
     );
 
     // ----------------------------------------------
-    // Health
+    // Health ring
     // ----------------------------------------------
 
     const healthRatio =
       this.getHealthRatio();
 
-    const healthEndAngle =
+    const color =
+      this.getHealthColor(
+        healthRatio,
+      );
+
+    const endAngle =
       -Math.PI / 2 +
-      Math.PI *
-      2 *
+      Math.PI * 2 *
       healthRatio;
 
-    this.healthEllipse.lineStyle(
-      4,
-      0x00ff66,
+    this.healthCircle.lineStyle(
+      3,
+      color,
       1,
     );
 
-    this.drawEllipse(
+    this.drawHealthCircle(
       centerX,
       centerY,
-      radiusX,
-      radiusY,
+      circleRadius,
       -Math.PI / 2,
-      healthEndAngle,
+      endAngle,
     );
   }
 
-  private drawEllipse(
+  private getHealthColor(
+    healthRatio: number,
+  ): number {
+    const ratio =
+      Phaser.Math.Clamp(
+        healthRatio,
+        0,
+        1,
+      );
+
+    /*
+    * Color stages:
+    *
+    * 100% → green
+    *  75% → yellow-green
+    *  50% → yellow
+    *  25% → orange
+    *   0% → red
+    */
+
+    const colorStops = [
+      {
+        ratio: 1.00,
+        r: 34,
+        g: 197,
+        b: 94,
+      },
+      {
+        ratio: 0.75,
+        r: 132,
+        g: 204,
+        b: 22,
+      },
+      {
+        ratio: 0.50,
+        r: 250,
+        g: 204,
+        b: 21,
+      },
+      {
+        ratio: 0.25,
+        r: 249,
+        g: 115,
+        b: 22,
+      },
+      {
+        ratio: 0.00,
+        r: 239,
+        g: 68,
+        b: 68,
+      },
+    ];
+
+    for (
+      let i = 0;
+      i < colorStops.length - 1;
+      i++
+    ) {
+      const upper =
+        colorStops[i];
+
+      const lower =
+        colorStops[i + 1];
+
+      if (
+        ratio <= upper.ratio &&
+        ratio >= lower.ratio
+      ) {
+        const range =
+          upper.ratio -
+          lower.ratio;
+
+        const progress =
+          range === 0
+            ? 0
+            : (
+                upper.ratio -
+                ratio
+              ) / range;
+
+        const r = Math.round(
+          Phaser.Math.Linear(
+            upper.r,
+            lower.r,
+            progress,
+          ),
+        );
+
+        const g = Math.round(
+          Phaser.Math.Linear(
+            upper.g,
+            lower.g,
+            progress,
+          ),
+        );
+
+        const b = Math.round(
+          Phaser.Math.Linear(
+            upper.b,
+            lower.b,
+            progress,
+          ),
+        );
+
+        return (
+          (r << 16) |
+          (g << 8) |
+          b
+        );
+      }
+    }
+
+    return 0xef4444;
+  }
+
+  private drawHealthCircle(
     centerX: number,
     centerY: number,
-    radiusX: number,
-    radiusY: number,
+    radius: number,
     startAngle: number,
     endAngle: number,
   ): void {
-    this.healthEllipse.beginPath();
+    this.healthCircle.beginPath();
 
     const steps = 60;
 
@@ -460,27 +589,27 @@ export class Unit {
       const x =
         centerX +
         Math.cos(angle) *
-        radiusX;
+        radius;
 
       const y =
         centerY +
         Math.sin(angle) *
-        radiusY;
+        radius;
 
       if (i === 0) {
-        this.healthEllipse.moveTo(
+        this.healthCircle.moveTo(
           x,
           y,
         );
       } else {
-        this.healthEllipse.lineTo(
+        this.healthCircle.lineTo(
           x,
           y,
         );
       }
     }
 
-    this.healthEllipse.strokePath();
+    this.healthCircle.strokePath();
   }
 
   // --------------------------------------------------
@@ -489,6 +618,6 @@ export class Unit {
 
   public destroy(): void {
     this.sprite.destroy();
-    this.healthEllipse.destroy();
+    this.healthCircle.destroy();
   }
 }
