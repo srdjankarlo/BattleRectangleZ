@@ -193,8 +193,11 @@ class BattleBallzScene extends Phaser.Scene {
     // TEST UNITS
     // ----------------------------------------------
 
-    const knight1 = this.createUnit(Characters.KNIGHT, 100, 250);
-    const knight2 = this.createUnit(Characters.KNIGHT, 100, 250);
+    // const knight1 = this.createUnit(Characters.KNIGHT, 100, 250, 1);
+    // const knight2 = this.createUnit(Characters.KNIGHT, 100, 250, 1);
+    const goblin1 = this.createUnit(Characters.GOBLIN, 100, 250, 1);
+    const goblin2 = this.createUnit(Characters.GOBLIN, 100, 250, 2);
+    // const goblin3 = this.createUnit(Characters.GOBLIN, 100, 250, 2);
 
     // const knight1 =
     //   new Unit(
@@ -247,10 +250,11 @@ class BattleBallzScene extends Phaser.Scene {
     //   );
 
     this.units.push(
-      knight1,
-      knight2,
-      // goblin1,
-      // goblin2,
+      // knight1,
+      // knight2,
+      goblin1,
+      goblin2,
+      // goblin3,
       // wizard,
     );
 
@@ -313,6 +317,7 @@ class BattleBallzScene extends Phaser.Scene {
     config: UnitConfig,
     x: number,
     y: number,
+    teamId: number,
   ): Unit {
     const baseName =
       config.name;
@@ -338,6 +343,7 @@ class BattleBallzScene extends Phaser.Scene {
       this.arenaWidth,
       this.arenaHeight,
       instanceNumber,
+      teamId,
     );
   }
 

@@ -24,6 +24,10 @@ import {
   DamageType,
 } from "./Damage";
 
+import type {
+  TeamId,
+} from "./Team";
+
 export class Unit {
   // --------------------------------------------------
   // VISUAL
@@ -60,6 +64,8 @@ export class Unit {
 
   public readonly physics:
     Physics;
+  
+  public readonly teamId: TeamId;
 
   constructor(
     scene: Phaser.Scene,
@@ -69,10 +75,12 @@ export class Unit {
     arenaWidth: number,
     arenaHeight: number,
     instanceNumber: number,
+    teamId: TeamId,
   ) {
     this.config = config;
     this.name = config.name;
     this.instanceNumber = instanceNumber;
+    this.teamId = teamId;
 
     const stats =
       config.stats;
@@ -224,29 +232,32 @@ export class Unit {
     */
     let thisDamage = 0;
     let otherDamage = 0;
+    const friendlyFire = this.teamId === other.teamId;
 
-    if (
-      thisCanAttack &&
-      otherWasAlive
-    ) {
-      thisDamage =
-        this.combat.calculateDamage(
-          this.combat.bodyAttackDamage,
-          DamageType.PHYSICAL,
-          other.config.stats,
-        );
-    }
+    if (!friendlyFire){
+      if (
+        thisCanAttack &&
+        otherWasAlive
+      ) {
+        thisDamage =
+          this.combat.calculateDamage(
+            this.combat.bodyAttackDamage,
+            DamageType.PHYSICAL,
+            other.config.stats,
+          );
+      }
 
-    if (
-      otherCanAttack &&
-      thisWasAlive
-    ) {
-      otherDamage =
-        other.combat.calculateDamage(
-          other.combat.bodyAttackDamage,
-          DamageType.PHYSICAL,
-          this.config.stats,
-        );
+      if (
+        otherCanAttack &&
+        thisWasAlive
+      ) {
+        otherDamage =
+          other.combat.calculateDamage(
+            other.combat.bodyAttackDamage,
+            DamageType.PHYSICAL,
+            this.config.stats,
+          );
+      }
     }
 
     /*
