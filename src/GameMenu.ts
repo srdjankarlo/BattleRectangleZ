@@ -1,904 +1,690 @@
-import {
-  Characters,
-} from "./characters/Characters";
-
+import { Characters, type CharacterId } from "./characters/Characters";
 import type {
-  CharacterId,
-} from "./characters/Characters";
-
-import {
-  MovementType,
-} from "./units/Movement";
-
-import type {
-  MovementOverride,
-} from "./GameSetup";
-
-import {
-  ARENAS,
-} from "./GameSetup";
-
-import type {
-  ArenaId,
   BattleSetup,
   GameMode,
-  TeamSetup,
+  MovementOverride,
+  UnitSelection,
 } from "./GameSetup";
 
 // --------------------------------------------------
-// MENU CLASS
+// MENU DATA
+// --------------------------------------------------
+
+type ArenaOption = {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+};
+
+type TeamState = {
+  id: number;
+  units: UnitSelection[];
+};
+
+const ARENAS: ArenaOption[] = [
+  { id: "tiny", label: "Tiny", width: 200, height: 200 },
+  { id: "small", label: "Small", width: 500, height: 500 },
+  { id: "medium", label: "Medium", width: 1000, height: 1000 },
+  { id: "big", label: "Big", width: 1500, height: 1500 },
+  { id: "large", label: "Large", width: 200, height: 2000 },
+];
+
+const DEFAULT_SELECTION: UnitSelection = {
+  characterId: "KNIGHT" as CharacterId,
+  movementOverride: "default",
+};
+
+const MIN_TEAMS = 1;
+const MAX_TEAMS = 8;
+
+// --------------------------------------------------
+// GAME MENU
 // --------------------------------------------------
 
 export class GameMenu {
   private readonly root: HTMLElement;
+  private readonly onStart: (setup: BattleSetup) => void;
 
-  private readonly onStart:
-    (setup: BattleSetup) => void;
+  // These values are the actual menu state.
+  // Rendering HTML must never reset them.
+  private mode: GameMode = "simulation";
+  private arenaId = "small";
+  private teamCount = 2;
 
-  private teams: TeamSetup[] = [
-    this.createDefaultTeam(1),
-    this.createDefaultTeam(2),
+  private teams: TeamState[] = [
+    {
+      id: 1,
+      units: [this.cloneSelection(DEFAULT_SELECTION)],
+    },
+    {
+      id: 2,
+      units: [this.cloneSelection(DEFAULT_SELECTION)],
+    },
   ];
 
   constructor(
     root: HTMLElement,
-    onStart: (
-      setup: BattleSetup,
-    ) => void,
+    onStart: (setup: BattleSetup) => void,
   ) {
     this.root = root;
     this.onStart = onStart;
 
+    this.root.classList.add("battleballz-menu-root");
     this.render();
   }
 
-  // ------------------------------------------------
-  // DEFAULT TEAM
-  // ------------------------------------------------
-
-  private createDefaultTeam(
-    id: number,
-  ): TeamSetup {
-    return {
-      id,
-
-      units: [
-        {
-          characterId: "KNIGHT",
-          movementOverride:
-            "default",
-        },
-      ],
-    };
+  hide(): void {
+    this.root.classList.add("hidden");
   }
 
-  // ------------------------------------------------
-  // RENDER MENU
-  // ------------------------------------------------
+  show(): void {
+    this.root.classList.remove("hidden");
+  }
+
+  // --------------------------------------------------
+  // FULL MENU RENDER
+  // --------------------------------------------------
 
   private render(): void {
-    this.root.innerHTML = "";
+    this.root.innerHTML = `
+      <main class="bb-menu">
+        <section class="bb-hero">
+          <div class="bb-logo-mark">BBZ</div>
+          <div class="bb-kicker">BATTLE SIMULATOR</div>
+          <h1>BattleBall'z</h1>
+          <p>Choose the battlefield, build the teams, and let them fight.</p>
+        </section>
 
-    const menu =
-      document.createElement(
-        "div",
-      );
+        <section class="bb-panel bb-setup-panel">
+          <div class="bb-panel-heading">
+            <div>
+              <div class="bb-section-kicker">MATCH SETUP</div>
+              <h2>Configure battle</h2>
+            </div>
+            <div class="bb-status-pill">SIMULATION ONLINE</div>
+          </div>
 
-    menu.className =
-      "battle-menu";
+          <div class="bb-match-options">
+            <section class="bb-setting-block">
+              <div class="bb-setting-label">GAME MODE</div>
+              <div id="bb-mode-options" class="bb-mode-options"></div>
+            </section>
 
-    // ----------------------------------------------
-    // Title
-    // ----------------------------------------------
+            <section class="bb-setting-block bb-arena-section">
+              <div class="bb-setting-label">ARENA</div>
+              <div id="bb-arena-options" class="bb-arena-options"></div>
+            </section>
 
-    const title =
-      document.createElement(
-        "h1",
-      );
+            <section class="bb-setting-block bb-team-count-section">
+              <div class="bb-setting-label">NUMBER OF TEAMS</div>
+              <div class="bb-number-control">
+                <button
+                  id="bb-team-minus"
+                  class="bb-step-button"
+                  type="button"
+                  aria-label="Decrease number of teams"
+                >−</button>
+                <input
+                  id="bb-team-count"
+                  type="number"
+                  min="${MIN_TEAMS}"
+                  max="${MAX_TEAMS}"
+                  step="1"
+                  inputmode="numeric"
+                  aria-label="Number of teams"
+                />
+                <button
+                  id="bb-team-plus"
+                  class="bb-step-button"
+                  type="button"
+                  aria-label="Increase number of teams"
+                >+</button>
+              </div>
+              <div class="bb-setting-hint">1–8 teams</div>
+            </section>
+          </div>
 
-    title.textContent =
-      "BATTLEBALL'Z";
+          <div class="bb-divider"></div>
 
-    menu.appendChild(
-      title,
+          <div class="bb-panel-heading bb-teams-heading">
+            <div>
+              <div class="bb-section-kicker">ROSTER</div>
+              <h2>Your teams</h2>
+            </div>
+            <span class="bb-hint">New units copy the previous unit</span>
+          </div>
+
+          <div id="bb-mode-message" class="bb-mode-message hidden"></div>
+          <div id="bb-teams" class="bb-teams"></div>
+
+          <div class="bb-actions">
+            <button id="bb-start" class="bb-primary-button" type="button">
+              <span>START BATTLE</span>
+              <span class="bb-button-arrow">→</span>
+            </button>
+          </div>
+        </section>
+
+        <footer class="bb-footer">
+          <span>BATTLEBALL'Z // EARLY BUILD</span>
+          <span>Simulation is currently playable</span>
+        </footer>
+      </main>
+    `;
+
+    this.renderModeOptions();
+    this.renderArenaOptions();
+    this.syncTopControls();
+    this.renderTeams();
+    this.bindStaticEvents();
+    this.updateModeAvailability();
+  }
+
+  // --------------------------------------------------
+  // MODE
+  // --------------------------------------------------
+
+  private renderModeOptions(): void {
+    const container = this.getElement<HTMLElement>("#bb-mode-options");
+
+    const modes: Array<{
+      value: GameMode;
+      title: string;
+      description: string;
+      available: boolean;
+    }> = [
+      {
+        value: "simulation",
+        title: "Simulation",
+        description: "Bot vs bot",
+        available: true,
+      },
+      {
+        value: "story",
+        title: "Story Mode",
+        description: "Coming soon",
+        available: false,
+      },
+      {
+        value: "pvp",
+        title: "PvP",
+        description: "Coming soon",
+        available: false,
+      },
+    ];
+
+    container.innerHTML = modes
+      .map(
+        (mode) => `
+          <button
+            type="button"
+            class="bb-mode-option ${this.mode === mode.value ? "selected" : ""} ${mode.available ? "" : "unavailable"}"
+            data-mode="${mode.value}"
+          >
+            <span class="bb-mode-title">${mode.title}</span>
+            <span class="bb-mode-description">${mode.description}</span>
+          </button>
+        `,
+      )
+      .join("");
+  }
+
+  private renderArenaOptions(): void {
+    const container = this.getElement<HTMLElement>("#bb-arena-options");
+
+    container.innerHTML = ARENAS.map(
+      (arena) => `
+        <button
+          type="button"
+          class="bb-arena-option ${this.arenaId === arena.id ? "selected" : ""}"
+          data-arena-id="${arena.id}"
+        >
+          <span class="bb-arena-name">${arena.label}</span>
+          <span class="bb-arena-size">${arena.width} × ${arena.height}</span>
+        </button>
+      `,
+    ).join("");
+  }
+
+  private syncTopControls(): void {
+    const teamCountInput =
+      this.getElement<HTMLInputElement>("#bb-team-count");
+
+    teamCountInput.value = String(this.teamCount);
+  }
+
+  // --------------------------------------------------
+  // TEAM RENDERING
+  // --------------------------------------------------
+
+  private renderTeams(): void {
+    const container = this.getElement<HTMLElement>("#bb-teams");
+
+    container.innerHTML = this.teams
+      .map(
+        (team) => `
+          <section class="bb-team-card" data-team-id="${team.id}">
+            <div class="bb-team-card-header">
+              <div class="bb-team-title">
+                <span class="bb-team-number">Team${String(team.id).padStart(1)}</span>
+              </div>
+              <span class="bb-unit-count">${team.units.length} UNIT${team.units.length === 1 ? "" : "S"}</span>
+            </div>
+
+            <div class="bb-unit-list">
+              ${team.units
+                .map(
+                  (_unit, unitIndex) => `
+                    <div
+                      class="bb-unit-row"
+                      data-team-id="${team.id}"
+                      data-unit-index="${unitIndex}"
+                    >
+                      <span class="bb-unit-index">${String(unitIndex + 1).padStart(2, "0")}</span>
+
+                      <label class="bb-unit-field">
+                        <span>Character</span>
+                        <select class="bb-unit-character" aria-label="Character"></select>
+                      </label>
+
+                      <label class="bb-unit-field">
+                        <span>Movement</span>
+                        <select class="bb-unit-movement" aria-label="Movement"></select>
+                      </label>
+
+                      <button
+                        class="bb-remove-unit"
+                        type="button"
+                        aria-label="Remove unit"
+                      >×</button>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+
+            <button
+              class="bb-add-unit"
+              type="button"
+              data-team-id="${team.id}"
+            >
+              + ADD UNIT
+            </button>
+          </section>
+        `,
+      )
+      .join("");
+
+    this.populateUnitSelects();
+    this.bindTeamEvents();
+  }
+
+  private populateUnitSelects(): void {
+    const characterOptions = Object.entries(Characters)
+      .map(
+        ([id, config]) =>
+          `<option value="${id}">${config.name}</option>`,
+      )
+      .join("");
+
+    const movementOptions = `
+      <option value="default">Default</option>
+      <option value="bounce">Bounce</option>
+      <option value="wander">Wander</option>
+      <option value="jitter">Jitter</option>
+    `;
+
+    const rows = Array.from(
+      this.root.querySelectorAll<HTMLElement>(".bb-unit-row"),
     );
 
-    const subtitle =
-      document.createElement(
-        "p",
-      );
+    for (const row of rows) {
+      const teamId = Number(row.dataset.teamId);
+      const unitIndex = Number(row.dataset.unitIndex);
+      const unit = this.getUnit(teamId, unitIndex);
 
-    subtitle.textContent =
-      "Battle setup";
+      if (!unit) {
+        continue;
+      }
 
-    subtitle.className =
-      "menu-subtitle";
+      const characterSelect =
+        row.querySelector<HTMLSelectElement>(".bb-unit-character");
+      const movementSelect =
+        row.querySelector<HTMLSelectElement>(".bb-unit-movement");
 
-    menu.appendChild(
-      subtitle,
-    );
+      if (!characterSelect || !movementSelect) {
+        continue;
+      }
 
-    // ----------------------------------------------
-    // General settings
-    // ----------------------------------------------
+      characterSelect.innerHTML = characterOptions;
+      movementSelect.innerHTML = movementOptions;
 
-    const settings =
-      document.createElement(
-        "div",
-      );
+      characterSelect.value = unit.characterId;
+      movementSelect.value = unit.movementOverride;
+    }
+  }
 
-    settings.className =
-      "menu-settings";
+  // --------------------------------------------------
+  // EVENTS
+  // --------------------------------------------------
 
-    // Game mode.
-    settings.appendChild(
-      this.createModeSelector(),
-    );
+  private bindStaticEvents(): void {
+    this.bindModeEvents();
+    this.bindArenaEvents();
 
-    // Arena.
-    settings.appendChild(
-      this.createArenaSelector(),
-    );
+    const minusButton =
+      this.getElement<HTMLButtonElement>("#bb-team-minus");
+    const plusButton =
+      this.getElement<HTMLButtonElement>("#bb-team-plus");
+    const input =
+      this.getElement<HTMLInputElement>("#bb-team-count");
 
-    // Number of teams.
-    settings.appendChild(
-      this.createTeamCountInput(),
-    );
+    minusButton.addEventListener("click", () => {
+      this.setTeamCount(this.teamCount - 1);
+    });
 
-    menu.appendChild(
-      settings,
-    );
+    plusButton.addEventListener("click", () => {
+      this.setTeamCount(this.teamCount + 1);
+    });
 
-    // ----------------------------------------------
-    // Error message
-    // ----------------------------------------------
+    input.addEventListener("change", () => {
+      const requested = Number(input.value);
 
-    const error =
-      document.createElement(
-        "div",
-      );
+      if (!Number.isFinite(requested)) {
+        input.value = String(this.teamCount);
+        return;
+      }
 
-    error.id =
-      "battle-menu-error";
+      this.setTeamCount(requested);
+    });
 
-    menu.appendChild(
-      error,
-    );
-
-    // ----------------------------------------------
-    // Teams
-    // ----------------------------------------------
-
-    const teamsContainer =
-      document.createElement(
-        "div",
-      );
-
-    teamsContainer.id =
-      "teams-container";
-
-    this.renderTeams(
-      teamsContainer,
-    );
-
-    menu.appendChild(
-      teamsContainer,
-    );
-
-    // ----------------------------------------------
-    // Start button
-    // ----------------------------------------------
-
-    const startButton =
-      document.createElement(
-        "button",
-      );
-
-    startButton.type =
-      "button";
-
-    startButton.className =
-      "start-battle-button";
-
-    startButton.textContent =
-      "START BATTLE";
-
-    startButton.addEventListener(
+    this.getElement<HTMLButtonElement>("#bb-start").addEventListener(
       "click",
       () => {
         this.startBattle();
       },
     );
-
-    menu.appendChild(
-      startButton,
-    );
-
-    this.root.appendChild(
-      menu,
-    );
-
-    this.updateStartButton();
   }
 
-  // ------------------------------------------------
-  // MODE SELECTOR
-  // ------------------------------------------------
-
-  private createModeSelector(): HTMLElement {
-    return this.createLabeledSelect(
-      "GAME MODE",
-      "game-mode",
-      [
-        {
-          value: "simulation",
-          label: "Simulation",
-        },
-        {
-          value: "story",
-          label: "Story Mode",
-        },
-        {
-          value: "pvp",
-          label: "PvP",
-        },
-      ],
-      "simulation",
-      (value) => {
-        void value;
-
-        this.updateStartButton();
-      },
+  private bindModeEvents(): void {
+    const modeButtons = Array.from(
+      this.root.querySelectorAll<HTMLButtonElement>(".bb-mode-option"),
     );
+
+    for (const button of modeButtons) {
+      button.addEventListener("click", () => {
+        const nextMode = button.dataset.mode as GameMode | undefined;
+
+        if (!nextMode) {
+          return;
+        }
+
+        this.mode = nextMode;
+        this.renderModeOptions();
+        this.bindModeEvents();
+        this.updateModeAvailability();
+      });
+    }
   }
 
-  // ------------------------------------------------
-  // ARENA SELECTOR
-  // ------------------------------------------------
-
-  private createArenaSelector(): HTMLElement {
-    const options =
-      (
-        Object.entries(
-          ARENAS,
-        ) as [
-          ArenaId,
-          (typeof ARENAS)[ArenaId],
-        ][]
-      ).map(
-        ([id, arena]) => ({
-          value: id,
-          label: arena.label,
-        }),
-      );
-
-    return this.createLabeledSelect(
-      "ARENA",
-      "arena",
-      options,
-      "small",
-      () => {},
+  private bindArenaEvents(): void {
+    const arenaButtons = Array.from(
+      this.root.querySelectorAll<HTMLButtonElement>(".bb-arena-option"),
     );
+
+    for (const button of arenaButtons) {
+      button.addEventListener("click", () => {
+        const arenaId = button.dataset.arenaId;
+
+        if (!arenaId) {
+          return;
+        }
+
+        // Only this event changes arenaId.
+        // Team/roster changes never touch the selected arena.
+        this.arenaId = arenaId;
+        this.renderArenaOptions();
+        this.bindArenaEvents();
+      });
+    }
   }
 
-  // ------------------------------------------------
+  private bindTeamEvents(): void {
+    const characterSelects = Array.from(
+      this.root.querySelectorAll<HTMLSelectElement>(".bb-unit-character"),
+    );
+
+    for (const select of characterSelects) {
+      select.addEventListener("change", (event) => {
+        const target = event.currentTarget as HTMLSelectElement;
+        const row = target.closest<HTMLElement>(".bb-unit-row");
+
+        if (!row) {
+          return;
+        }
+
+        const teamId = Number(row.dataset.teamId);
+        const unitIndex = Number(row.dataset.unitIndex);
+        const unit = this.getUnit(teamId, unitIndex);
+
+        if (!unit) {
+          return;
+        }
+
+        unit.characterId = target.value as CharacterId;
+      });
+    }
+
+    const movementSelects = Array.from(
+      this.root.querySelectorAll<HTMLSelectElement>(".bb-unit-movement"),
+    );
+
+    for (const select of movementSelects) {
+      select.addEventListener("change", (event) => {
+        const target = event.currentTarget as HTMLSelectElement;
+        const row = target.closest<HTMLElement>(".bb-unit-row");
+
+        if (!row) {
+          return;
+        }
+
+        const teamId = Number(row.dataset.teamId);
+        const unitIndex = Number(row.dataset.unitIndex);
+        const unit = this.getUnit(teamId, unitIndex);
+
+        if (!unit) {
+          return;
+        }
+
+        unit.movementOverride = target.value as MovementOverride;
+      });
+    }
+
+    const removeButtons = Array.from(
+      this.root.querySelectorAll<HTMLButtonElement>(".bb-remove-unit"),
+    );
+
+    for (const button of removeButtons) {
+      button.addEventListener("click", (event) => {
+        const target = event.currentTarget as HTMLButtonElement;
+        const row = target.closest<HTMLElement>(".bb-unit-row");
+
+        if (!row) {
+          return;
+        }
+
+        const teamId = Number(row.dataset.teamId);
+        const unitIndex = Number(row.dataset.unitIndex);
+        const team = this.teams.find((item) => item.id === teamId);
+
+        if (!team || team.units.length === 1) {
+          return;
+        }
+
+        team.units.splice(unitIndex, 1);
+        this.renderTeams();
+      });
+    }
+
+    const addButtons = Array.from(
+      this.root.querySelectorAll<HTMLButtonElement>(".bb-add-unit"),
+    );
+
+    for (const button of addButtons) {
+      button.addEventListener("click", (event) => {
+        const target = event.currentTarget as HTMLButtonElement;
+        const teamId = Number(target.dataset.teamId);
+        const team = this.teams.find((item) => item.id === teamId);
+
+        if (!team) {
+          return;
+        }
+
+        // IMPORTANT:
+        // Copy the last unit in this team.
+        // This is why adding another unit keeps the previous
+        // character and movement selection by default.
+        const previousUnit = team.units.at(-1);
+        const nextUnit = previousUnit
+          ? this.cloneSelection(previousUnit)
+          : this.cloneSelection(DEFAULT_SELECTION);
+
+        team.units.push(nextUnit);
+        this.renderTeams();
+      });
+    }
+  }
+
+  // --------------------------------------------------
   // TEAM COUNT
-  // ------------------------------------------------
+  // --------------------------------------------------
 
-  private createTeamCountInput(): HTMLElement {
-    const wrapper =
-      document.createElement(
-        "label",
-      );
+  private setTeamCount(requestedCount: number): void {
+    const newCount = Math.max(
+      MIN_TEAMS,
+      Math.min(MAX_TEAMS, Math.round(requestedCount)),
+    );
 
-    wrapper.className =
-      "menu-field";
+    while (this.teams.length < newCount) {
+      const teamId = this.teams.length + 1;
 
-    const text =
-      document.createElement(
-        "span",
-      );
+      this.teams.push({
+        id: teamId,
+        units: [this.cloneSelection(DEFAULT_SELECTION)],
+      });
+    }
 
-    text.textContent =
-      "NUMBER OF TEAMS";
+    if (this.teams.length > newCount) {
+      this.teams = this.teams.slice(0, newCount);
+    }
+
+    this.teamCount = newCount;
 
     const input =
-      document.createElement(
-        "input",
-      );
+      this.getElement<HTMLInputElement>("#bb-team-count");
+    input.value = String(this.teamCount);
 
-    input.type =
-      "number";
-
-    input.min = "2";
-
-    input.max = "20";
-
-    input.step = "1";
-
-    input.value =
-      this.teams.length.toString();
-
-    input.addEventListener(
-      "change",
-      () => {
-        this.changeTeamCount(
-          Number(input.value),
-        );
-      },
-    );
-
-    wrapper.appendChild(
-      text,
-    );
-
-    wrapper.appendChild(
-      input,
-    );
-
-    return wrapper;
+    this.renderTeams();
   }
 
-  // ------------------------------------------------
-  // GENERIC SELECT
-  // ------------------------------------------------
+  // --------------------------------------------------
+  // MODE VISIBILITY
+  // --------------------------------------------------
 
-  private createLabeledSelect(
-    labelText: string,
-    id: string,
-    options: {
-      value: string;
-      label: string;
-    }[],
-    defaultValue: string,
-    onChange: (
-      value: string,
-    ) => void,
-  ): HTMLElement {
-    const wrapper =
-      document.createElement(
-        "label",
-      );
+  private updateModeAvailability(): void {
+    const arenaSection =
+      this.getElement<HTMLElement>(".bb-arena-section");
+    const teamCountSection =
+      this.getElement<HTMLElement>(".bb-team-count-section");
+    const startButton =
+      this.getElement<HTMLButtonElement>("#bb-start");
+    const message =
+      this.getElement<HTMLElement>("#bb-mode-message");
 
-    wrapper.className =
-      "menu-field";
+    const storyMode = this.mode === "story";
+    const playable = this.mode === "simulation";
 
-    const label =
-      document.createElement(
-        "span",
-      );
+    arenaSection.classList.toggle("hidden", storyMode);
+    teamCountSection.classList.toggle("hidden", storyMode);
 
-    label.textContent =
-      labelText;
+    startButton.disabled = !playable;
 
-    const select =
-      document.createElement(
-        "select",
-      );
-
-    select.id = id;
-
-    for (
-      const optionData of options
-    ) {
-      const option =
-        document.createElement(
-          "option",
-        );
-
-      option.value =
-        optionData.value;
-
-      option.textContent =
-        optionData.label;
-
-      select.appendChild(
-        option,
-      );
-    }
-
-    select.value =
-      defaultValue;
-
-    select.addEventListener(
-      "change",
-      () => {
-        onChange(
-          select.value,
-        );
-      },
-    );
-
-    wrapper.appendChild(
-      label,
-    );
-
-    wrapper.appendChild(
-      select,
-    );
-
-    return wrapper;
-  }
-
-  // ------------------------------------------------
-  // TEAMS
-  // ------------------------------------------------
-
-  private renderTeams(
-    container: HTMLElement,
-  ): void {
-    container.innerHTML = "";
-
-    for (
-      const team of this.teams
-    ) {
-      const teamElement =
-        document.createElement(
-          "section",
-        );
-
-      teamElement.className =
-        "team-section";
-
-      const heading =
-        document.createElement(
-          "h2",
-        );
-
-      heading.textContent =
-        `TEAM ${team.id}`;
-
-      teamElement.appendChild(
-        heading,
-      );
-
-      const unitsContainer =
-        document.createElement(
-          "div",
-        );
-
-      unitsContainer.className =
-        "team-units";
-
-      for (
-        let unitIndex = 0;
-        unitIndex <
-          team.units.length;
-        unitIndex++
-      ) {
-        const row =
-          this.createUnitRow(
-            team,
-            unitIndex,
-          );
-
-        unitsContainer.appendChild(
-          row,
-        );
-      }
-
-      teamElement.appendChild(
-        unitsContainer,
-      );
-
-      // --------------------------------------------
-      // Add unit button
-      // --------------------------------------------
-
-      const addButton =
-        document.createElement(
-          "button",
-        );
-
-      addButton.type =
-        "button";
-
-      addButton.className =
-        "secondary-button";
-
-      addButton.textContent =
-        "+ ADD UNIT";
-
-      addButton.addEventListener(
-        "click",
-        () => {
-          team.units.push({
-            characterId:
-              "KNIGHT",
-            movementOverride:
-              "default",
-          });
-
-          this.render();
-        },
-      );
-
-      teamElement.appendChild(
-        addButton,
-      );
-
-      container.appendChild(
-        teamElement,
-      );
+    if (!playable) {
+      message.textContent =
+        this.mode === "story"
+          ? "Story Mode is planned but is not playable yet."
+          : "PvP is planned but is not playable yet.";
+      message.classList.remove("hidden");
+    } else {
+      message.textContent = "";
+      message.classList.add("hidden");
     }
   }
 
-  // ------------------------------------------------
-  // UNIT ROW
-  // ------------------------------------------------
-
-  private createUnitRow(
-    team: TeamSetup,
-    unitIndex: number,
-  ): HTMLElement {
-    const unit =
-      team.units[
-        unitIndex
-      ];
-
-    const row =
-      document.createElement(
-        "div",
-      );
-
-    row.className =
-      "unit-selection-row";
-
-    // ----------------------------------------------
-    // Character
-    // ----------------------------------------------
-
-    const characterSelect =
-      document.createElement(
-        "select",
-      );
-
-    characterSelect.className =
-      "unit-character-select";
-
-    const characterIds =
-      Object.keys(
-        Characters,
-      ) as CharacterId[];
-
-    for (
-      const characterId
-      of characterIds
-    ) {
-      const option =
-        document.createElement(
-          "option",
-        );
-
-      option.value =
-        characterId;
-
-      option.textContent =
-        Characters[
-          characterId
-        ].name;
-
-      characterSelect.appendChild(
-        option,
-      );
-    }
-
-    characterSelect.value =
-      unit.characterId;
-
-    characterSelect.addEventListener(
-      "change",
-      () => {
-        unit.characterId =
-          characterSelect.value as CharacterId;
-      },
-    );
-
-    // ----------------------------------------------
-    // Movement
-    // ----------------------------------------------
-
-    const movementSelect =
-      document.createElement(
-        "select",
-      );
-
-    movementSelect.className =
-      "unit-movement-select";
-
-    const movementOptions: {
-      value: MovementOverride;
-      label: string;
-    }[] = [
-      {
-        value: "default",
-        label: "Default",
-      },
-      {
-        value: MovementType.BOUNCE,
-        label: "Bounce",
-      },
-      {
-        value: MovementType.WANDER,
-        label: "Wander",
-      },
-      {
-        value: MovementType.JITTER,
-        label: "Jitter",
-      },
-    ];
-
-    for (
-      const optionData
-      of movementOptions
-    ) {
-      const option =
-        document.createElement(
-          "option",
-        );
-
-      option.value =
-        optionData.value;
-
-      option.textContent =
-        optionData.label;
-
-      movementSelect.appendChild(
-        option,
-      );
-    }
-
-    movementSelect.value =
-      unit.movementOverride;
-
-    movementSelect.addEventListener(
-      "change",
-      () => {
-        unit.movementOverride =
-          movementSelect.value as MovementOverride;
-      },
-    );
-
-    // ----------------------------------------------
-    // Remove
-    // ----------------------------------------------
-
-    const removeButton =
-      document.createElement(
-        "button",
-      );
-
-    removeButton.type =
-      "button";
-
-    removeButton.className =
-      "remove-unit-button";
-
-    removeButton.textContent =
-      "×";
-
-    removeButton.title =
-      "Remove unit";
-
-    removeButton.addEventListener(
-      "click",
-      () => {
-        team.units.splice(
-          unitIndex,
-          1,
-        );
-
-        this.render();
-      },
-    );
-
-    row.appendChild(
-      characterSelect,
-    );
-
-    row.appendChild(
-      movementSelect,
-    );
-
-    row.appendChild(
-      removeButton,
-    );
-
-    return row;
-  }
-
-  // ------------------------------------------------
-  // TEAM COUNT CHANGE
-  // ------------------------------------------------
-
-  private changeTeamCount(
-    requestedCount: number,
-  ): void {
-    const count =
-      Math.max(
-        2,
-        Math.min(
-          20,
-          Math.floor(
-            requestedCount,
-          ),
-        ),
-      );
-
-    while (
-      this.teams.length <
-      count
-    ) {
-      this.teams.push(
-        this.createDefaultTeam(
-          this.teams.length + 1,
-        ),
-      );
-    }
-
-    while (
-      this.teams.length >
-      count
-    ) {
-      this.teams.pop();
-    }
-
-    for (
-      let i = 0;
-      i < this.teams.length;
-      i++
-    ) {
-      this.teams[i].id =
-        i + 1;
-    }
-
-    this.render();
-  }
-
-  // ------------------------------------------------
-  // START
-  // ------------------------------------------------
+  // --------------------------------------------------
+  // START BATTLE
+  // --------------------------------------------------
 
   private startBattle(): void {
-    const modeSelect =
-      document.getElementById(
-        "game-mode",
-      ) as HTMLSelectElement;
-
-    const arenaSelect =
-      document.getElementById(
-        "arena",
-      ) as HTMLSelectElement;
-
-    const error =
-      document.getElementById(
-        "battle-menu-error",
-      );
-
-    if (!error) {
+    if (this.mode !== "simulation") {
       return;
     }
 
-    error.textContent = "";
+    const arena = ARENAS.find(
+      (item) => item.id === this.arenaId,
+    );
 
-    const mode =
-      modeSelect.value as GameMode;
-
-    if (
-      mode !==
-      "simulation"
-    ) {
-      error.textContent =
-        "This mode is not implemented yet.";
-
+    if (!arena) {
       return;
     }
-
-    const emptyTeam =
-      this.teams.find(
-        (team) =>
-          team.units.length === 0,
-      );
-
-    if (emptyTeam) {
-      error.textContent =
-        `Team ${emptyTeam.id} must contain at least one unit.`;
-
-      return;
-    }
-
-    const arena =
-      ARENAS[
-        arenaSelect.value as ArenaId
-      ];
 
     const setup: BattleSetup = {
-      mode,
-
-      arenaWidth:
-        arena.width,
-
-      arenaHeight:
-        arena.height,
-
-      teams:
-        this.teams.map(
-          (team) => ({
-            id: team.id,
-
-            units:
-              team.units.map(
-                (unit) => ({
-                  ...unit,
-                }),
-              ),
-          }),
+      mode: this.mode,
+      arenaWidth: arena.width,
+      arenaHeight: arena.height,
+      teams: this.teams.map((team) => ({
+        id: team.id,
+        units: team.units.map((unit) =>
+          this.cloneSelection(unit),
         ),
+      })),
     };
 
-    this.onStart(
-      setup,
-    );
+    this.onStart(setup);
   }
 
-  // ------------------------------------------------
-  // START BUTTON STATE
-  // ------------------------------------------------
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
 
-  private updateStartButton(): void {
-    const modeSelect =
-      document.getElementById(
-        "game-mode",
-      ) as
-        | HTMLSelectElement
-        | null;
+  private getUnit(
+    teamId: number,
+    unitIndex: number,
+  ): UnitSelection | undefined {
+    return this.teams
+      .find((team) => team.id === teamId)
+      ?.units[unitIndex];
+  }
 
-    const startButton =
-      this.root.querySelector(
-        ".start-battle-button",
-      ) as
-        | HTMLButtonElement
-        | null;
+  private cloneSelection(
+    selection: UnitSelection,
+  ): UnitSelection {
+    return {
+      characterId: selection.characterId,
+      movementOverride: selection.movementOverride,
+    };
+  }
 
-    if (
-      !modeSelect ||
-      !startButton
-    ) {
-      return;
+  private getElement<T extends Element>(selector: string): T {
+    const element = this.root.querySelector<T>(selector);
+
+    if (!element) {
+      throw new Error(
+        `BattleBallz menu element not found: ${selector}`,
+      );
     }
 
-    if (
-      modeSelect.value ===
-      "simulation"
-    ) {
-      startButton.disabled =
-        false;
-
-      startButton.textContent =
-        "START SIMULATION";
-    } else {
-      startButton.disabled =
-        true;
-
-      startButton.textContent =
-        modeSelect.value ===
-        "story"
-          ? "STORY MODE — COMING SOON"
-          : "PVP — COMING SOON";
-    }
-  }
-
-  // ------------------------------------------------
-  // VISIBILITY
-  // ------------------------------------------------
-
-  show(): void {
-    this.root.style.display =
-      "block";
-  }
-
-  hide(): void {
-    this.root.style.display =
-      "none";
+    return element;
   }
 }

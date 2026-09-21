@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import "./style.css";
 
 import {
   GameMenu,
@@ -81,20 +82,43 @@ const menu =
 function startBattle(
   setup: BattleSetup,
 ): void {
-  activeBattleSetup =
-    setup;
+  activeBattleSetup = setup;
 
   menu.hide();
+  gameContainer.classList.remove("hidden");
 
-  gameContainer.classList.remove(
-    "hidden",
-  );
-
-  // Create a fresh Phaser game.
-  game =
-    new Phaser.Game(
+  if (!game) {
+    game = new Phaser.Game(
       createPhaserConfig(),
     );
+
+    return;
+  }
+
+  game.scale.refresh();
+
+  const scene = game.scene.getScene(
+    "BattleBallzScene",
+  );
+
+  scene.scene.restart();
+}
+
+// Restart only the BattleBall'z scene.
+// We deliberately do NOT destroy and recreate Phaser.Game.
+// Phaser's Game.destroy() is asynchronous, so recreating the game
+// immediately can cause multiple scale calculations/canvases.
+function restartBattle(): void {
+  if (!game) {
+    return;
+  }
+
+  const scene =
+    game.scene.getScene(
+      "BattleBallzScene",
+    );
+
+  scene.scene.restart();
 }
 
 // --------------------------------------------------
@@ -103,11 +127,13 @@ function startBattle(
 
 function returnToMenu(): void {
   if (game) {
-    game.destroy(
-      true,
-    );
-
-    game = null;
+    // Stop the scene, but keep the Phaser.Game instance alive.
+    // This prevents repeated game/canvas creation and scaling drift.
+    if (game.scene.isActive("BattleBallzScene")) {
+      game.scene.stop(
+        "BattleBallzScene",
+      );
+    }
   }
 
   activeBattleSetup =
@@ -149,6 +175,11 @@ function createPhaserConfig():
 
       autoCenter:
         Phaser.Scale.CENTER_BOTH,
+
+      // Keep Phaser's own scale multiplier fixed.
+      // FIT may shrink to fit the browser, but it cannot
+      // progressively multiply the game size.
+      zoom: 1,
     },
 
     scene:
@@ -185,6 +216,12 @@ class BattleBallzScene
     Phaser.GameObjects.Rectangle;
 
   private pauseButtonText!:
+    Phaser.GameObjects.Text;
+
+  private restartButtonBackground!:
+    Phaser.GameObjects.Rectangle;
+
+  private restartButtonText!:
     Phaser.GameObjects.Text;
 
   // Battle status.
@@ -250,6 +287,16 @@ class BattleBallzScene
       return;
     }
 
+    // Scene restart reuses this Scene instance, so clear all
+    // per-battle state before building a fresh battle.
+    this.units = [];
+    this.unitCounters.clear();
+    this.isPaused = false;
+    this.statusScrollOffset = 0;
+    this.statusContentHeight = 0;
+    this.statusDragging = false;
+    this.statusLastPointerY = 0;
+
     this.arenaWidth =
       activeBattleSetup.arenaWidth;
 
@@ -262,6 +309,10 @@ class BattleBallzScene
 
     const worldCamera =
       this.cameras.main;
+
+    // Camera zoom belongs to this battle scene only.
+    // It starts from 1 every time the scene is recreated.
+    worldCamera.setZoom(1);
 
     const worldViewportWidth =
       960;
@@ -587,6 +638,60 @@ class BattleBallzScene
     );
 
     // ----------------------------------------------
+    // RESTART BUTTON
+    // ----------------------------------------------
+
+    this.restartButtonBackground =
+      this.add.rectangle(
+        650,
+        20,
+        105,
+        30,
+        0x252525,
+      );
+
+    this.restartButtonBackground.setOrigin(0.5, 0.5);
+    this.restartButtonBackground.setStrokeStyle(1, 0x666666);
+    this.restartButtonBackground.setInteractive({
+      useHandCursor: true,
+    });
+
+    this.restartButtonText =
+      this.add.text(
+        650,
+        20,
+        "RESTART",
+        {
+          fontSize: "11px",
+          fontStyle: "bold",
+          color: "#ffffff",
+        },
+      );
+
+    this.restartButtonText.setOrigin(0.5, 0.5);
+
+    this.restartButtonBackground.on(
+      "pointerdown",
+      () => {
+        restartBattle();
+      },
+    );
+
+    this.restartButtonBackground.on(
+      "pointerover",
+      () => {
+        this.restartButtonBackground.setFillStyle(0x3a3a3a);
+      },
+    );
+
+    this.restartButtonBackground.on(
+      "pointerout",
+      () => {
+        this.restartButtonBackground.setFillStyle(0x252525);
+      },
+    );
+
+    // ----------------------------------------------
     // BACK TO MENU BUTTON
     // ----------------------------------------------
 
@@ -673,6 +778,8 @@ class BattleBallzScene
       statusPanelBackground,
       this.pauseButtonBackground,
       this.pauseButtonText,
+      this.restartButtonBackground,
+      this.restartButtonText,
       menuButtonBackground,
       menuButtonText,
     ]);
@@ -1096,13 +1203,13 @@ class BattleBallzScene
       const parts = [
         displayName,
         unit.teamId.toString(),
-        `${unit.getHealth().toFixed(2)}/${unit.getMaxHealth().toFixed(0)}`,
+        `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`,
       ];
 
       if (hasShield) {
         parts.push(
           stats.maxShield > 0
-            ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}`
+            ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}`
             : "-",
         );
       }
