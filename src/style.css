@@ -16,6 +16,7 @@ body,
   margin: 0;
   width: 100%;
   min-height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -30,12 +31,8 @@ button,
 input,
 select {
   font: inherit;
-}
-
-button,
-input,
-select {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button:focus-visible,
@@ -50,9 +47,6 @@ select:focus-visible {
 }
 
 #game-container {
-  /* The Phaser layer owns the whole viewport.
-     This prevents the menu's gradient background from showing around
-     or behind the game canvas when a new battle starts. */
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -62,6 +56,7 @@ select:focus-visible {
   transform: none;
   background: #000;
   z-index: 1000;
+  touch-action: none;
 }
 
 #game-container.hidden {
@@ -72,6 +67,10 @@ select:focus-visible {
 
 #game-container canvas {
   display: block;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .battleballz-menu-root {
@@ -118,7 +117,7 @@ select:focus-visible {
 
 .bb-hero h1 {
   margin: 7px 0 7px;
-  font-size: clamp(46px, 9vw, 78px);
+  font-size: clamp(40px, 8vw, 78px);
   line-height: 0.92;
   letter-spacing: -0.06em;
 }
@@ -287,6 +286,8 @@ select:focus-visible {
   font-size: 24px;
   font-weight: 700;
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
 .bb-step-button:hover {
@@ -304,11 +305,6 @@ select:focus-visible {
   text-align: center;
   font-size: 20px;
   font-weight: 900;
-}
-
-.bb-number-control input::-webkit-inner-spin-button,
-.bb-number-control input::-webkit-outer-spin-button {
-  opacity: 1;
 }
 
 .bb-divider {
@@ -361,23 +357,17 @@ select:focus-visible {
   font-weight: 950;
 }
 
-.bb-team-card h3 {
-  font-size: 17px;
-}
-
 .bb-unit-list {
   display: grid;
   gap: 8px;
 }
 
-/* Hide spin buttons for Chrome, Safari, Edge, and Opera */
 #bb-team-count::-webkit-outer-spin-button,
 #bb-team-count::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Hide spin buttons for Firefox */
 #bb-team-count {
   -moz-appearance: textfield;
 }
@@ -424,11 +414,7 @@ select:focus-visible {
   color: #f5f3ff;
   outline: none;
   cursor: pointer;
-  pointer-events: auto;
-}
-
-.bb-unit-row select:focus {
-  border-color: rgba(150, 125, 255, 0.66);
+  font-size: 14px;
 }
 
 .bb-remove-unit {
@@ -449,29 +435,14 @@ select:focus-visible {
 
 .bb-add-unit {
   margin-top: 11px;
-  padding: 8px 2px;
+  padding: 10px 4px;
   border: 0;
   background: transparent;
   color: rgba(169, 150, 255, 0.95);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.12em;
   cursor: pointer;
-}
-
-.bb-add-unit:hover {
-  color: #fff;
-}
-
-.bb-mode-message {
-  margin-top: 15px;
-  padding: 11px 13px;
-  border: 1px solid rgba(255, 197, 95, 0.17);
-  border-radius: 12px;
-  background: rgba(255, 197, 95, 0.06);
-  color: rgba(255, 220, 157, 0.82);
-  font-size: 11px;
-  line-height: 1.45;
 }
 
 .bb-actions {
@@ -499,22 +470,6 @@ select:focus-visible {
   box-shadow: 0 15px 35px rgba(103, 77, 255, 0.24);
 }
 
-.bb-primary-button:hover:not(:disabled) {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-}
-
-.bb-primary-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.bb-button-arrow {
-  font-size: 21px;
-  line-height: 1;
-}
-
 .bb-footer {
   display: flex;
   justify-content: space-between;
@@ -527,6 +482,10 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
+/* -------------------------------------------------- */
+/* RESPONSIVE & MOBILE / APK VISUAL ADJUSTMENTS       */
+/* -------------------------------------------------- */
+
 @media (max-width: 860px) {
   .bb-arena-options {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -535,20 +494,24 @@ select:focus-visible {
 
 @media (max-width: 680px) {
   .battleballz-menu-root {
-    padding: 20px 12px 38px;
+    padding: 14px 10px 28px;
   }
 
   .bb-setup-panel {
-    padding: 17px;
-    border-radius: 20px;
+    padding: 16px;
+    border-radius: 18px;
   }
 
   .bb-logo-mark {
     display: none;
   }
 
-  .bb-panel-heading {
-    align-items: flex-start;
+  .bb-hero h1 {
+    font-size: 38px;
+  }
+
+  .bb-hero p {
+    font-size: 13px;
   }
 
   .bb-status-pill {
@@ -563,8 +526,14 @@ select:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* Prevent automatic webview scale/zoom on mobile selects */
+  .bb-unit-row select {
+    font-size: 16px;
+  }
+
   .bb-unit-row {
-    grid-template-columns: 30px minmax(0, 1fr) 40px;
+    grid-template-columns: 26px minmax(0, 1fr) 42px;
+    gap: 8px;
   }
 
   .bb-unit-field:nth-child(3) {
@@ -574,6 +543,9 @@ select:focus-visible {
   .bb-remove-unit {
     grid-column: 3;
     grid-row: 1 / span 2;
+    align-self: center;
+    width: 42px;
+    height: 42px;
   }
 
   .bb-actions {
@@ -582,19 +554,29 @@ select:focus-visible {
 
   .bb-primary-button {
     width: 100%;
+    min-height: 56px;
   }
 
   .bb-footer {
     flex-direction: column;
+    gap: 6px;
+    text-align: center;
   }
 }
 
 @media (max-width: 440px) {
   .bb-arena-options {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .bb-arena-option {
+    padding: 8px 10px;
+    min-height: 58px;
   }
 
   .bb-number-control {
-    grid-template-columns: 46px 82px 46px;
+    grid-template-columns: 46px 74px 46px;
+    min-height: 48px;
   }
 }

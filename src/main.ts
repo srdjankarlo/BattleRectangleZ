@@ -1,123 +1,67 @@
 import Phaser from "phaser";
 import "./style.css";
 
-import {
-  GameMenu,
-} from "./GameMenu";
-
-import type {
-  BattleSetup,
-  UnitSelection,
-} from "./GameSetup";
-
-import {
-  Unit,
-} from "./units/Unit";
-
-import {
-  Characters,
-} from "./characters/Characters";
-
-import type {
-  UnitConfig,
-} from "./units/UnitConfig";
-
-import type {
-  MovementType,
-} from "./units/Movement";
+import { GameMenu } from "./GameMenu";
+import type { BattleSetup, UnitSelection } from "./GameSetup";
+import { Unit } from "./units/Unit";
+import { Characters } from "./characters/Characters";
+import type { UnitConfig } from "./units/UnitConfig";
+import type { MovementType } from "./units/Movement";
 
 // --------------------------------------------------
 // DOM ELEMENTS
 // --------------------------------------------------
 
-const menuRootElement =
-  document.getElementById(
-    "menu-root",
-  );
+const menuRootElement = document.getElementById("menu-root");
+const gameContainerElement = document.getElementById("game-container");
 
-const gameContainerElement =
-  document.getElementById(
-    "game-container",
-  );
-
-if (
-  !menuRootElement ||
-  !gameContainerElement
-) {
-  throw new Error(
-    "Required HTML elements were not found.",
-  );
+if (!menuRootElement || !gameContainerElement) {
+  throw new Error("Required HTML elements were not found.");
 }
 
-const menuRoot: HTMLElement =
-  menuRootElement;
-
-const gameContainer: HTMLElement =
-  gameContainerElement;
+const menuRoot: HTMLElement = menuRootElement;
+const gameContainer: HTMLElement = gameContainerElement;
 
 // --------------------------------------------------
 // GLOBAL GAME STATE
 // --------------------------------------------------
 
-let activeBattleSetup:
-  BattleSetup | null = null;
-
-let game:
-  Phaser.Game | null = null;
+let activeBattleSetup: BattleSetup | null = null;
+let game: Phaser.Game | null = null;
 
 // --------------------------------------------------
 // CREATE MENU
 // --------------------------------------------------
 
-const menu =
-  new GameMenu(
-    menuRoot,
-    startBattle,
-  );
+const menu = new GameMenu(menuRoot, startBattle);
 
 // --------------------------------------------------
 // START BATTLE
 // --------------------------------------------------
 
-function startBattle(
-  setup: BattleSetup,
-): void {
+function startBattle(setup: BattleSetup): void {
   activeBattleSetup = setup;
 
   menu.hide();
   gameContainer.classList.remove("hidden");
 
   if (!game) {
-    game = new Phaser.Game(
-      createPhaserConfig(),
-    );
-
+    game = new Phaser.Game(createPhaserConfig());
     return;
   }
 
   game.scale.refresh();
 
-  const scene = game.scene.getScene(
-    "BattleBallzScene",
-  );
-
+  const scene = game.scene.getScene("BattleBallzScene");
   scene.scene.restart();
 }
 
-// Restart only the BattleBall'z scene.
-// We deliberately do NOT destroy and recreate Phaser.Game.
-// Phaser's Game.destroy() is asynchronous, so recreating the game
-// immediately can cause multiple scale calculations/canvases.
 function restartBattle(): void {
   if (!game) {
     return;
   }
 
-  const scene =
-    game.scene.getScene(
-      "BattleBallzScene",
-    );
-
+  const scene = game.scene.getScene("BattleBallzScene");
   scene.scene.restart();
 }
 
@@ -127,22 +71,13 @@ function restartBattle(): void {
 
 function returnToMenu(): void {
   if (game) {
-    // Stop the scene, but keep the Phaser.Game instance alive.
-    // This prevents repeated game/canvas creation and scaling drift.
     if (game.scene.isActive("BattleBallzScene")) {
-      game.scene.stop(
-        "BattleBallzScene",
-      );
+      game.scene.stop("BattleBallzScene");
     }
   }
 
-  activeBattleSetup =
-    null;
-
-  gameContainer.classList.add(
-    "hidden",
-  );
-
+  activeBattleSetup = null;
+  gameContainer.classList.add("hidden");
   menu.show();
 }
 
@@ -150,40 +85,19 @@ function returnToMenu(): void {
 // PHASER CONFIG
 // --------------------------------------------------
 
-function createPhaserConfig():
-  Phaser.Types.Core.GameConfig {
+function createPhaserConfig(): Phaser.Types.Core.GameConfig {
   return {
     type: Phaser.AUTO,
-
     width: 960,
-    height: 900,
-
-    backgroundColor:
-      "#0b0b0b",
-
-    parent:
-      "game-container",
-
-    /*
-     * FIT makes the complete Phaser canvas
-     * fit inside its parent while preserving
-     * the aspect ratio.
-     */
+    height: 960,
+    backgroundColor: "#0b0b0b",
+    parent: "game-container",
     scale: {
-      mode:
-        Phaser.Scale.FIT,
-
-      autoCenter:
-        Phaser.Scale.CENTER_BOTH,
-
-      // Keep Phaser's own scale multiplier fixed.
-      // FIT may shrink to fit the browser, but it cannot
-      // progressively multiply the game size.
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
       zoom: 1,
     },
-
-    scene:
-      BattleBallzScene,
+    scene: BattleBallzScene,
   };
 }
 
@@ -191,90 +105,56 @@ function createPhaserConfig():
 // GAME SCENE
 // --------------------------------------------------
 
-class BattleBallzScene
-  extends Phaser.Scene {
-
-  private units:
-    Unit[] = [];
-
-  private unitCounters =
-    new Map<
-      string,
-      number
-    >();
+class BattleBallzScene extends Phaser.Scene {
+  private units: Unit[] = [];
+  private unitCounters = new Map<string, number>();
 
   private arenaWidth = 500;
   private arenaHeight = 500;
 
-  // Pause.
+  // Pause
   private isPaused = false;
 
-  private pauseStatusText!:
-    Phaser.GameObjects.Text;
+  private pauseStatusText!: Phaser.GameObjects.Text;
+  private pauseButtonBackground!: Phaser.GameObjects.Rectangle;
+  private pauseButtonText!: Phaser.GameObjects.Text;
+  private restartButtonBackground!: Phaser.GameObjects.Rectangle;
+  private restartButtonText!: Phaser.GameObjects.Text;
 
-  private pauseButtonBackground!:
-    Phaser.GameObjects.Rectangle;
+  // Battle status
+  private statusText!: Phaser.GameObjects.Text;
 
-  private pauseButtonText!:
-    Phaser.GameObjects.Text;
-
-  private restartButtonBackground!:
-    Phaser.GameObjects.Rectangle;
-
-  private restartButtonText!:
-    Phaser.GameObjects.Text;
-
-  // Battle status.
-  private statusText!:
-    Phaser.GameObjects.Text;
-  
-  // Status UI coordinates are LOCAL to the UI camera.
-  // The UI camera itself is placed at screen Y = 590.
   private statusScrollOffset = 0;
+  private readonly uiViewportTop = 520;
+  private readonly uiViewportHeight = 440;
 
-  private readonly uiViewportTop = 590;
-  private readonly uiViewportHeight = 310;
-
-  private readonly statusPanelTop = 53;
-  private readonly statusPanelHeight = 250;
+  private readonly statusPanelTop = 110;
+  private readonly statusPanelHeight = 310;
 
   private statusContentHeight = 0;
-
   private statusMask!: Phaser.Display.Masks.GeometryMask;
 
-  // scroll for phone
+  // Touch drag for mobile
   private statusDragging = false;
   private statusLastPointerY = 0;
 
   constructor() {
-    super(
-      "BattleBallzScene",
-    );
+    super("BattleBallzScene");
   }
 
-  private scrollStatus(
-    amount: number,
-  ): void {
-    const maximumScroll =
-      Math.max(
-        0,
-        this.statusContentHeight -
-          this.statusPanelHeight +
-          10,
-      );
+  private scrollStatus(amount: number): void {
+    const maximumScroll = Math.max(
+      0,
+      this.statusContentHeight - this.statusPanelHeight + 20,
+    );
 
-    this.statusScrollOffset =
-      Phaser.Math.Clamp(
-        this.statusScrollOffset +
-          amount * 0.5,
-        0,
-        maximumScroll,
-      );
+    this.statusScrollOffset = Phaser.Math.Clamp(
+      this.statusScrollOffset + amount * 0.8,
+      0,
+      maximumScroll,
+    );
 
-    this.statusText.y =
-      this.statusPanelTop +
-      8 -
-      this.statusScrollOffset;
+    this.statusText.y = this.statusPanelTop + 12 - this.statusScrollOffset;
   }
 
   // ------------------------------------------------
@@ -287,8 +167,14 @@ class BattleBallzScene
       return;
     }
 
-    // Scene restart reuses this Scene instance, so clear all
-    // per-battle state before building a fresh battle.
+    // Clean up lingering secondary cameras from previous restarts
+    for (const camera of [...this.cameras.cameras]) {
+      if (camera !== this.cameras.main) {
+        this.cameras.remove(camera, true);
+      }
+    }
+
+    // Reset scene state
     this.units = [];
     this.unitCounters.clear();
     this.isPaused = false;
@@ -297,104 +183,60 @@ class BattleBallzScene
     this.statusDragging = false;
     this.statusLastPointerY = 0;
 
-    this.arenaWidth =
-      activeBattleSetup.arenaWidth;
+    this.arenaWidth = activeBattleSetup.arenaWidth;
+    this.arenaHeight = activeBattleSetup.arenaHeight;
 
-    this.arenaHeight =
-      activeBattleSetup.arenaHeight;
+    const worldObjects: Phaser.GameObjects.GameObject[] = [];
+    const uiObjects: Phaser.GameObjects.GameObject[] = [];
 
     // ----------------------------------------------
-    // WORLD CAMERA
+    // WORLD CAMERA (ARENA MATCHES FULL PHONE WIDTH)
     // ----------------------------------------------
 
-    const worldCamera =
-      this.cameras.main;
+    const worldCamera = this.cameras.main;
+    const worldViewportWidth = 960;
+    const worldViewportHeight = 520;
 
-    // Camera zoom belongs to this battle scene only.
-    // It starts from 1 every time the scene is recreated.
-    worldCamera.setZoom(1);
+    worldCamera.setViewport(0, 0, worldViewportWidth, worldViewportHeight);
 
-    const worldViewportWidth =
-      960;
+    // Zoom camera so arena width fills maximum available viewport width
+    const padding = 16;
+    const availableWidth = worldViewportWidth - padding;
+    const availableHeight = worldViewportHeight - padding;
 
-    const worldViewportHeight =
-      590;
-
-    worldCamera.setViewport(
-      0,
-      0,
-      worldViewportWidth,
-      worldViewportHeight,
+    const fitZoom = Math.min(
+      availableWidth / this.arenaWidth,
+      availableHeight / this.arenaHeight,
     );
 
-    /*
-     * We reserve a little padding around the arena.
-     */
-    const availableWidth =
-      worldViewportWidth -
-      30;
-
-    const availableHeight =
-      worldViewportHeight -
-      30;
-
-    /*
-     * Camera zoom controls how much of the
-     * world is visible.
-     *
-     * Large arena:
-     * smaller zoom → more world visible.
-     *
-     * Tiny arena:
-     * larger zoom → arena doesn't look tiny.
-     */
-    const fitZoom =
-      Math.min(
-        availableWidth /
-          this.arenaWidth,
-
-        availableHeight /
-          this.arenaHeight,
-      );
-
-    const zoom =
-      Math.min(
-        2.5,
-        fitZoom,
-      );
-
-    worldCamera.setZoom(
-      zoom,
-    );
-
-    worldCamera.centerOn(
-      this.arenaWidth / 2,
-      this.arenaHeight / 2,
-    );
+    worldCamera.setZoom(fitZoom);
+    worldCamera.centerOn(this.arenaWidth / 2, this.arenaHeight / 2);
 
     // ----------------------------------------------
     // ARENA
     // ----------------------------------------------
 
-    this.add.rectangle(
-      this.arenaWidth / 2,
-      this.arenaHeight / 2,
-      this.arenaWidth,
-      this.arenaHeight,
-      0x333333,
-    );
+    const arenaBg = this.add
+      .rectangle(
+        this.arenaWidth / 2,
+        this.arenaHeight / 2,
+        this.arenaWidth,
+        this.arenaHeight,
+        0x282828,
+      )
+      .setDepth(0);
 
-    this.add
+    const arenaBorder = this.add
       .rectangle(
         this.arenaWidth / 2,
         this.arenaHeight / 2,
         this.arenaWidth,
         this.arenaHeight,
       )
-      .setStrokeStyle(
-        6,
-        0x4d0feb,
-      );
+      .setStrokeStyle(8, 0x6f53ff)
+      .setDepth(1);
+
+    worldObjects.push(arenaBg, arenaBorder);
 
     // ----------------------------------------------
     // CREATE UNITS FROM MENU
@@ -402,407 +244,198 @@ class BattleBallzScene
 
     for (
       let teamIndex = 0;
-      teamIndex <
-        activeBattleSetup.teams.length;
+      teamIndex < activeBattleSetup.teams.length;
       teamIndex++
     ) {
-      const team =
-        activeBattleSetup
-          .teams[
-            teamIndex
-          ];
+      const team = activeBattleSetup.teams[teamIndex];
 
-      for (
-        let unitIndex = 0;
-        unitIndex <
-          team.units.length;
-        unitIndex++
-      ) {
-        const selection =
-          team.units[
-            unitIndex
-          ];
+      for (let unitIndex = 0; unitIndex < team.units.length; unitIndex++) {
+        const selection = team.units[unitIndex];
 
-        const unit =
-          this.createUnitFromSelection(
-            selection,
-            team.id,
-            teamIndex,
-            activeBattleSetup
-              .teams.length,
-            unitIndex,
-            team.units.length,
-          );
-
-        this.units.push(
-          unit,
+        const unit = this.createUnitFromSelection(
+          selection,
+          team.id,
+          teamIndex,
+          activeBattleSetup.teams.length,
+          unitIndex,
+          team.units.length,
         );
+
+        this.units.push(unit);
+        worldObjects.push(unit.sprite, unit.healthCircle);
       }
     }
 
-    /*
-     * Save everything currently in the display
-     * list as WORLD objects.
-     *
-     * The UI created below will then be ignored
-     * by the world camera.
-     */
-    const worldObjects =
-      [...this.children.list];
-
     // ----------------------------------------------
-    // UI CAMERA
+    // UI CAMERA (3X LARGER TOUCH CONTROLS & TEXT)
     // ----------------------------------------------
 
-    const uiCamera =
-      this.cameras.add(
-        0,
-        this.uiViewportTop,
-        960,
-        this.uiViewportHeight,
-      );
-
-    uiCamera.setScroll(
+    const uiCamera = this.cameras.add(
       0,
-      0,
+      this.uiViewportTop,
+      960,
+      this.uiViewportHeight,
     );
 
-    // ----------------------------------------------
-    // UI
-    // ----------------------------------------------
+    uiCamera.setScroll(0, 0);
 
-    const uiBackground =
-      this.add.rectangle(
-        0,
-        0,
-        960,
-        this.uiViewportHeight,
-        0x151515,
-      );
-
-    uiBackground.setOrigin(
+    // UI Background
+    const uiBackground = this.add.rectangle(
       0,
       0,
+      960,
+      this.uiViewportHeight,
+      0x121118,
     );
+    uiBackground.setOrigin(0, 0);
+    uiObjects.push(uiBackground);
 
-    // Status panel background must be created BEFORE
-    // the text so it stays behind the table.
-    const statusPanelBackground =
-      this.add.rectangle(
-        0,
-        this.statusPanelTop,
-        960,
-        this.statusPanelHeight,
-        0x151515,
-      );
-
-    statusPanelBackground
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x444444);
-
-    const title =
-      this.add.text(
-        12,
-        8,
-        "BATTLE STATUS",
-        {
-          fontSize: "16px",
-          fontStyle: "bold",
-          color: "#ffffff",
-        },
-      );
-
-    this.pauseStatusText =
-      this.add.text(
-        12,
-        31,
-        "RUNNING — press P",
-        {
-          fontSize: "11px",
-          color: "#aaaaaa",
-        },
-      );
-
-    this.statusText =
-      this.add.text(
-        12,
-        this.statusPanelTop + 8,
-        "",
-        {
-          fontFamily:
-            "monospace",
-
-          fontSize:
-            "10px",
-
-          color:
-            "#dddddd",
-
-          lineSpacing:
-            2,
-        },
-      );
-
-    const maskShape =
-      this.make.graphics({
-        x: 0,
-        y: 0,
-      });
-
-    maskShape.fillStyle(
-      0xffffff,
-      1,
-    );
-
-    maskShape.fillRect(
+    // Status Panel Frame
+    const statusPanelBackground = this.add.rectangle(
       0,
       this.statusPanelTop,
       960,
       this.statusPanelHeight,
+      0x1a1924,
     );
+    statusPanelBackground.setOrigin(0, 0).setStrokeStyle(2, 0x3d3954);
+    uiObjects.push(statusPanelBackground);
 
-    this.statusMask =
-      maskShape.createGeometryMask();
-
-    this.statusText.setMask(
-      this.statusMask,
-    );
-
-    // ----------------------------------------------
-    // PAUSE BUTTON
-    // ----------------------------------------------
-
-    this.pauseButtonBackground =
-      this.add.rectangle(
-        777,
-        20,
-        105,
-        30,
-        0x252525,
-      );
-
-    this.pauseButtonBackground.setOrigin(
-      0.5,
-      0.5,
-    );
-
-    this.pauseButtonBackground.setStrokeStyle(
-      1,
-      0x666666,
-    );
-
-    this.pauseButtonBackground.setInteractive({
-      useHandCursor: true,
+    // 3X Header Text
+    const title = this.add.text(18, 16, "BATTLE STATUS", {
+      fontSize: "36px",
+      fontStyle: "bold",
+      color: "#ffffff",
     });
+    uiObjects.push(title);
 
-    this.pauseButtonText =
-      this.add.text(
-        777,
-        20,
-        "PAUSE [P]",
-        {
-          fontSize: "11px",
-          fontStyle: "bold",
-          color: "#ffffff",
-        },
-      );
+    this.pauseStatusText = this.add.text(18, 62, "RUNNING — tap P / Pause", {
+      fontSize: "24px",
+      color: "#a0a0b8",
+    });
+    uiObjects.push(this.pauseStatusText);
 
-    this.pauseButtonText.setOrigin(
-      0.5,
-      0.5,
-    );
+    // 3X Status Log Text
+    this.statusText = this.add.text(18, this.statusPanelTop + 12, "", {
+      fontFamily: "monospace",
+      fontSize: "28px",
+      color: "#eeeeee",
+      lineSpacing: 8,
+    });
+    uiObjects.push(this.statusText);
 
-    this.pauseButtonBackground.on(
-      "pointerdown",
-      () => {
-        this.togglePause();
-      },
-    );
+    // Status Mask
+    const maskShape = this.make.graphics({ x: 0, y: 0 });
+    maskShape.fillStyle(0xffffff, 1);
+    maskShape.fillRect(0, this.statusPanelTop, 960, this.statusPanelHeight);
 
-    this.pauseButtonBackground.on(
-      "pointerover",
-      () => {
-        this.pauseButtonBackground.setFillStyle(
-          0x3a3a3a,
-        );
-      },
-    );
-
-    this.pauseButtonBackground.on(
-      "pointerout",
-      () => {
-        this.pauseButtonBackground.setFillStyle(
-          0x252525,
-        );
-      },
-    );
+    this.statusMask = maskShape.createGeometryMask();
+    this.statusText.setMask(this.statusMask);
 
     // ----------------------------------------------
+    // LARGE MOBILE TOUCH BUTTONS
+    // ----------------------------------------------
+
     // RESTART BUTTON
-    // ----------------------------------------------
-
-    this.restartButtonBackground =
-      this.add.rectangle(
-        650,
-        20,
-        105,
-        30,
-        0x252525,
-      );
-
+    this.restartButtonBackground = this.add.rectangle(
+      520,
+      48,
+      170,
+      64,
+      0x2e2a40,
+    );
     this.restartButtonBackground.setOrigin(0.5, 0.5);
-    this.restartButtonBackground.setStrokeStyle(1, 0x666666);
-    this.restartButtonBackground.setInteractive({
-      useHandCursor: true,
+    this.restartButtonBackground.setStrokeStyle(2, 0x6f53ff);
+    this.restartButtonBackground.setInteractive({ useHandCursor: true });
+    uiObjects.push(this.restartButtonBackground);
+
+    this.restartButtonText = this.add.text(520, 48, "RESTART", {
+      fontSize: "26px",
+      fontStyle: "bold",
+      color: "#ffffff",
     });
-
-    this.restartButtonText =
-      this.add.text(
-        650,
-        20,
-        "RESTART",
-        {
-          fontSize: "11px",
-          fontStyle: "bold",
-          color: "#ffffff",
-        },
-      );
-
     this.restartButtonText.setOrigin(0.5, 0.5);
+    uiObjects.push(this.restartButtonText);
 
-    this.restartButtonBackground.on(
-      "pointerdown",
-      () => {
-        restartBattle();
-      },
-    );
-
-    this.restartButtonBackground.on(
-      "pointerover",
-      () => {
-        this.restartButtonBackground.setFillStyle(0x3a3a3a);
-      },
-    );
-
-    this.restartButtonBackground.on(
-      "pointerout",
-      () => {
-        this.restartButtonBackground.setFillStyle(0x252525);
-      },
-    );
-
-    // ----------------------------------------------
-    // BACK TO MENU BUTTON
-    // ----------------------------------------------
-
-    const menuButtonBackground =
-      this.add.rectangle(
-        895,
-        20,
-        90,
-        30,
-        0x252525,
-      );
-
-    menuButtonBackground.setOrigin(
-      0.5,
-      0.5,
-    );
-
-    menuButtonBackground.setStrokeStyle(
-      1,
-      0x666666,
-    );
-
-    menuButtonBackground.setInteractive({
-      useHandCursor: true,
+    this.restartButtonBackground.on("pointerdown", () => {
+      restartBattle();
     });
 
-    const menuButtonText =
-      this.add.text(
-        895,
-        20,
-        "MENU",
-        {
-          fontSize: "11px",
-          fontStyle: "bold",
-          color: "#ffffff",
-        },
-      );
-
-    menuButtonText.setOrigin(
-      0.5,
-      0.5,
+    // PAUSE BUTTON
+    this.pauseButtonBackground = this.add.rectangle(
+      710,
+      48,
+      170,
+      64,
+      0x2e2a40,
     );
+    this.pauseButtonBackground.setOrigin(0.5, 0.5);
+    this.pauseButtonBackground.setStrokeStyle(2, 0x6f53ff);
+    this.pauseButtonBackground.setInteractive({ useHandCursor: true });
+    uiObjects.push(this.pauseButtonBackground);
 
-    menuButtonBackground.on(
-      "pointerdown",
-      () => {
-        returnToMenu();
-      },
+    this.pauseButtonText = this.add.text(710, 48, "PAUSE", {
+      fontSize: "26px",
+      fontStyle: "bold",
+      color: "#ffffff",
+    });
+    this.pauseButtonText.setOrigin(0.5, 0.5);
+    uiObjects.push(this.pauseButtonText);
+
+    this.pauseButtonBackground.on("pointerdown", () => {
+      this.togglePause();
+    });
+
+    // MENU BUTTON
+    const menuButtonBackground = this.add.rectangle(
+      885,
+      48,
+      130,
+      64,
+      0x2e2a40,
     );
+    menuButtonBackground.setOrigin(0.5, 0.5);
+    menuButtonBackground.setStrokeStyle(2, 0x6f53ff);
+    menuButtonBackground.setInteractive({ useHandCursor: true });
+    uiObjects.push(menuButtonBackground);
+
+    const menuButtonText = this.add.text(885, 48, "MENU", {
+      fontSize: "26px",
+      fontStyle: "bold",
+      color: "#ffffff",
+    });
+    menuButtonText.setOrigin(0.5, 0.5);
+    uiObjects.push(menuButtonText);
+
+    menuButtonBackground.on("pointerdown", () => {
+      returnToMenu();
+    });
 
     // ----------------------------------------------
     // KEYBOARD
     // ----------------------------------------------
 
-    this.input.keyboard?.on(
-      "keydown-P",
-      () => {
-        this.togglePause();
-      },
-    );
+    this.input.keyboard?.on("keydown-P", () => {
+      this.togglePause();
+    });
 
     // ----------------------------------------------
-    // CAMERA FILTERING
+    // CAMERA ISOLATION
     // ----------------------------------------------
 
-    /*
-     * UI camera:
-     * render UI, ignore the battle world.
-     */
-    uiCamera.ignore(
-      worldObjects,
-    );
-
-    /*
-     * World camera:
-     * render the battle world, ignore UI.
-     */
-    worldCamera.ignore([
-      uiBackground,
-      statusPanelBackground,
-      title,
-      this.pauseStatusText,
-      this.statusText,
-      statusPanelBackground,
-      this.pauseButtonBackground,
-      this.pauseButtonText,
-      this.restartButtonBackground,
-      this.restartButtonText,
-      menuButtonBackground,
-      menuButtonText,
-    ]);
+    uiCamera.ignore(worldObjects);
+    worldCamera.ignore(uiObjects);
 
     // ----------------------------------------------
-    // INITIAL STATUS
+    // INITIAL STATUS & TOUCH SCROLLING
     // ----------------------------------------------
 
     this.updateStatus();
 
-    // ----------------------------------------------
-    // STATUS SCROLLING
-    // ----------------------------------------------
-
-    const statusPanelScreenTop =
-      this.uiViewportTop +
-      this.statusPanelTop;
-
+    const statusPanelScreenTop = this.uiViewportTop + this.statusPanelTop;
     const statusPanelScreenBottom =
-      statusPanelScreenTop +
-      this.statusPanelHeight;
+      statusPanelScreenTop + this.statusPanelHeight;
 
-    // Mouse wheel / trackpad.
     this.input.on(
       "wheel",
       (
@@ -810,7 +443,6 @@ class BattleBallzScene
         _gameObjects: Phaser.GameObjects.GameObject[],
         _deltaX: number,
         deltaY: number,
-        _deltaZ: number,
       ) => {
         if (
           pointer.y < statusPanelScreenTop ||
@@ -823,51 +455,34 @@ class BattleBallzScene
       },
     );
 
-    // Touch / mouse dragging for mobile and desktop.
-    this.input.on(
-      "pointerdown",
-      (pointer: Phaser.Input.Pointer) => {
-        if (
-          pointer.y >= statusPanelScreenTop &&
-          pointer.y <= statusPanelScreenBottom
-        ) {
-          this.statusDragging = true;
-          this.statusLastPointerY = pointer.y;
-        }
-      },
-    );
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (
+        pointer.y >= statusPanelScreenTop &&
+        pointer.y <= statusPanelScreenBottom
+      ) {
+        this.statusDragging = true;
+        this.statusLastPointerY = pointer.y;
+      }
+    });
 
-    this.input.on(
-      "pointermove",
-      (pointer: Phaser.Input.Pointer) => {
-        if (!this.statusDragging) {
-          return;
-        }
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (!this.statusDragging) {
+        return;
+      }
 
-        const movement =
-          this.statusLastPointerY -
-          pointer.y;
+      const movement = this.statusLastPointerY - pointer.y;
+      this.statusLastPointerY = pointer.y;
 
-        this.statusLastPointerY =
-          pointer.y;
+      this.scrollStatus(movement);
+    });
 
-        this.scrollStatus(movement);
-      },
-    );
+    this.input.on("pointerup", () => {
+      this.statusDragging = false;
+    });
 
-    this.input.on(
-      "pointerup",
-      () => {
-        this.statusDragging = false;
-      },
-    );
-
-    this.input.on(
-      "pointerupoutside",
-      () => {
-        this.statusDragging = false;
-      },
-    );
+    this.input.on("pointerupoutside", () => {
+      this.statusDragging = false;
+    });
   }
 
   // ------------------------------------------------
@@ -882,62 +497,30 @@ class BattleBallzScene
     unitIndex: number,
     unitsInTeam: number,
   ): Unit {
-    const baseConfig =
-      Characters[
-        selection.characterId
-      ];
+    const baseConfig = Characters[selection.characterId];
 
-    // ----------------------------------------------
-    // Movement override
-    // ----------------------------------------------
+    let config: UnitConfig = baseConfig;
 
-    let config:
-      UnitConfig =
-        baseConfig;
-
-    if (
-      selection.movementOverride !==
-      "default"
-    ) {
+    if (selection.movementOverride !== "default") {
       config = {
         ...baseConfig,
-        movementType:
-          selection.movementOverride as MovementType,
+        movementType: selection.movementOverride as MovementType,
       };
     }
 
-    // ----------------------------------------------
-    // Instance numbering
-    // ----------------------------------------------
+    const baseName = config.name;
+    const currentCount = this.unitCounters.get(baseName) ?? 0;
+    const instanceNumber = currentCount + 1;
 
-    const baseName =
-      config.name;
+    this.unitCounters.set(baseName, instanceNumber);
 
-    const currentCount =
-      this.unitCounters.get(
-        baseName,
-      ) ?? 0;
-
-    const instanceNumber =
-      currentCount + 1;
-
-    this.unitCounters.set(
-      baseName,
-      instanceNumber,
+    const position = this.getSpawnPosition(
+      teamIndex,
+      teamCount,
+      unitIndex,
+      unitsInTeam,
+      config.stats.radius,
     );
-
-    // ----------------------------------------------
-    // Spawn position
-    // ----------------------------------------------
-
-    const position =
-      this.getSpawnPosition(
-        teamIndex,
-        teamCount,
-        unitIndex,
-        unitsInTeam,
-        config.stats.radius,
-      );
 
     return new Unit(
       this,
@@ -961,175 +544,55 @@ class BattleBallzScene
     unitIndex: number,
     unitsInTeam: number,
     unitRadius: number,
-  ): {
-    x: number;
-    y: number;
-  } {
+  ): { x: number; y: number } {
     let centerX: number;
     let centerY: number;
 
-    // ----------------------------------------------
-    // Two teams:
-    //
-    // Team 1 = left
-    // Team 2 = right
-    // ----------------------------------------------
-
-    if (
-      teamCount === 2
-    ) {
-      centerX =
-        teamIndex === 0
-          ? this.arenaWidth *
-            0.20
-          : this.arenaWidth *
-            0.80;
-
-      centerY =
-        this.arenaHeight /
-        2;
+    if (teamCount === 2) {
+      centerX = teamIndex === 0 ? this.arenaWidth * 0.22 : this.arenaWidth * 0.78;
+      centerY = this.arenaHeight / 2;
     } else {
-      // --------------------------------------------
-      // Three or more teams:
-      // distribute them around the arena center.
-      // --------------------------------------------
+      const angle = -Math.PI / 2 + (teamIndex / teamCount) * Math.PI * 2;
+      const distance = Math.min(this.arenaWidth, this.arenaHeight) * 0.3;
 
-      const angle =
-        -Math.PI / 2 +
-        (
-          teamIndex /
-          teamCount
-        ) *
-          Math.PI *
-          2;
-
-      const distance =
-        Math.min(
-          this.arenaWidth,
-          this.arenaHeight,
-        ) *
-        0.30;
-
-      centerX =
-        this.arenaWidth /
-          2 +
-        Math.cos(angle) *
-          distance;
-
-      centerY =
-        this.arenaHeight /
-          2 +
-        Math.sin(angle) *
-          distance;
+      centerX = this.arenaWidth / 2 + Math.cos(angle) * distance;
+      centerY = this.arenaHeight / 2 + Math.sin(angle) * distance;
     }
 
-    // ----------------------------------------------
-    // Spread units belonging to one team.
-    // ----------------------------------------------
-
-    const spread =
-      Math.min(
-        60,
-        Math.min(
-          this.arenaWidth,
-          this.arenaHeight,
-        ) * 0.15,
-      );
+    const spread = Math.min(
+      70,
+      Math.min(this.arenaWidth, this.arenaHeight) * 0.18,
+    );
 
     const unitAngle =
-      unitsInTeam === 1
-        ? 0
-        : (
-            unitIndex /
-            unitsInTeam
-          ) *
-          Math.PI *
-          2;
+      unitsInTeam === 1 ? 0 : (unitIndex / unitsInTeam) * Math.PI * 2;
 
-    let x =
-      centerX +
-      Math.cos(unitAngle) *
-        spread;
+    let x = centerX + Math.cos(unitAngle) * spread;
+    let y = centerY + Math.sin(unitAngle) * spread;
 
-    let y =
-      centerY +
-      Math.sin(unitAngle) *
-        spread;
+    x = Phaser.Math.Clamp(x, unitRadius + 5, this.arenaWidth - unitRadius - 5);
+    y = Phaser.Math.Clamp(y, unitRadius + 5, this.arenaHeight - unitRadius - 5);
 
-    // Keep the unit inside the arena.
-    x =
-      Phaser.Math.Clamp(
-        x,
-        unitRadius,
-        this.arenaWidth -
-          unitRadius,
-      );
-
-    y =
-      Phaser.Math.Clamp(
-        y,
-        unitRadius,
-        this.arenaHeight -
-          unitRadius,
-      );
-
-    return {
-      x,
-      y,
-    };
+    return { x, y };
   }
 
   // ------------------------------------------------
   // UPDATE
   // ------------------------------------------------
 
-  update(
-    _time: number,
-    delta: number,
-  ): void {
-    const deltaSeconds =
-      delta / 1000;
-
-    // ----------------------------------------------
-    // SIMULATION
-    // ----------------------------------------------
+  update(_time: number, delta: number): void {
+    const deltaSeconds = delta / 1000;
 
     if (!this.isPaused) {
-      for (
-        const unit of this.units
-      ) {
-        unit.update(
-          deltaSeconds,
-        );
+      for (const unit of this.units) {
+        unit.update(deltaSeconds);
       }
 
-      // --------------------------------------------
-      // UNIT COLLISIONS
-      // --------------------------------------------
-
-      for (
-        let i = 0;
-        i < this.units.length;
-        i++
-      ) {
-        for (
-          let j = i + 1;
-          j < this.units.length;
-          j++
-        ) {
-          this.units[
-            i
-          ].resolveCollision(
-            this.units[
-              j
-            ],
-          );
+      for (let i = 0; i < this.units.length; i++) {
+        for (let j = i + 1; j < this.units.length; j++) {
+          this.units[i].resolveCollision(this.units[j]);
         }
       }
-
-      // --------------------------------------------
-      // REMOVE DEAD UNITS
-      // --------------------------------------------
 
       this.removeDeadUnits();
     }
@@ -1141,145 +604,90 @@ class BattleBallzScene
   // STATUS
   // ------------------------------------------------
 
+  // ------------------------------------------------
+  // STATUS
+  // ------------------------------------------------
+
   private updateStatus(): void {
-    const hasShield =
-      this.units.some(
-        (unit) =>
-          unit.getMaxShield() >
-          0,
-      );
-
-    const headerParts = [
-      "UNIT",
-      "TEAM",
-      "HP",
-    ];
-
-    if (hasShield) {
-      headerParts.push(
-        "SHLD",
-      );
-    }
-
-    headerParts.push(
-      "ARMR",
-      "MR",
-      "BDMG",
-      "MS",
-      "MASS",
+    // 1. Column Header (Single Row)
+    const headers = [
+      "TEAM".padEnd(5),
+      "UNIT".padEnd(12),
+      "HP".padEnd(14),
+      "ARM".padEnd(5),
+      "MR".padEnd(5),
+      "SHLD".padEnd(14),
+      "AD".padEnd(5),
+      "MS".padEnd(5),
+      "MASS".padEnd(5),
       "MOVE",
-    );
-
-    const lines: string[] = [
-      headerParts
-        .map(
-          (value) =>
-            value.padEnd(
-              11,
-              " ",
-            ),
-        )
-        .join(" "),
     ];
 
-    for (
-      const unit of this.units
-    ) {
-      const sameNameCount =
-        this.units.filter(
-          (other) =>
-            other.name ===
-            unit.name,
-        ).length;
+    const lines: string[] = [headers.join("")];
+
+    // 2. Unit Rows (Single Row per Unit)
+    for (const unit of this.units) {
+      const sameNameCount = this.units.filter(
+        (other) => other.name === unit.name,
+      ).length;
 
       const displayName =
         sameNameCount > 1
-          ? `${unit.name} ${unit.instanceNumber}`
+          ? `${unit.name} #${unit.instanceNumber}`
           : unit.name;
 
-      const stats =
-        unit.config.stats;
+      const stats = unit.config.stats;
 
-      const parts = [
-        displayName,
-        unit.teamId.toString(),
-        `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`,
+      // HP & Shield formatted to 2 decimal places
+      const hpStr = `${unit.getHealth().toFixed(2)}/${unit.getMaxHealth().toFixed(2)}`;
+      const shldStr =
+        stats.maxShield > 0
+          ? `${unit.getShield().toFixed(2)}/${unit.getMaxShield().toFixed(2)}`
+          : "0.00/0.00";
+
+      const armStr = stats.armor > 0 ? stats.armor.toString() : "0";
+      const mrStr = stats.magicResistance > 0 ? stats.magicResistance.toString() : "0";
+      const adStr = stats.bodyAttackDamage.toString();
+      const msStr = stats.speed.toString();
+      const massStr = stats.mass.toString();
+      const moveStr = unit.config.movementType.toUpperCase();
+
+      const row = [
+        unit.teamId.toString().padEnd(5),
+        displayName.slice(0, 11).padEnd(12),
+        hpStr.padEnd(14),
+        armStr.padEnd(5),
+        mrStr.padEnd(5),
+        shldStr.padEnd(14),
+        adStr.padEnd(5),
+        msStr.padEnd(5),
+        massStr.padEnd(5),
+        moveStr,
       ];
 
-      if (hasShield) {
-        parts.push(
-          stats.maxShield > 0
-            ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}`
-            : "-",
-        );
-      }
-
-      parts.push(
-        stats.armor > 0
-          ? stats.armor.toString()
-          : "-",
-
-        stats.magicResistance > 0
-          ? stats.magicResistance.toString()
-          : "-",
-
-        stats.bodyAttackDamage.toString(),
-
-        stats.speed.toString(),
-
-        stats.mass.toString(),
-
-        unit.config.movementType.toUpperCase(),
-      );
-
-      lines.push(
-        parts
-          .map(
-            (value) =>
-              value.padEnd(
-                11,
-                " ",
-              ),
-          )
-          .join(" "),
-      );
+      lines.push(row.join(""));
     }
 
-    if (
-      this.units.length === 0
-    ) {
-      lines.push(
-        "",
-        "NO UNITS REMAINING",
-      );
+    if (this.units.length === 0) {
+      lines.push("", "NO UNITS REMAINING");
     }
 
-    this.statusText.setText(
-      lines.join("\n"),
+    this.statusText.setText(lines.join("\n"));
+
+    // Set font size so all 10 columns fit in a single line across the 960px screen
+    this.statusText.setFontSize("18px");
+
+    const lineHeight = 26;
+    this.statusContentHeight = lines.length * lineHeight;
+
+    this.statusScrollOffset = Phaser.Math.Clamp(
+      this.statusScrollOffset,
+      0,
+      Math.max(0, this.statusContentHeight - this.statusPanelHeight + 20),
     );
 
-    const lineHeight = 14;
-
-    this.statusContentHeight =
-      lines.length *
-      lineHeight;
-
-    this.statusScrollOffset =
-      Phaser.Math.Clamp(
-        this.statusScrollOffset,
-        0,
-        Math.max(
-          0,
-          this.statusContentHeight -
-            this.statusPanelHeight +
-            10,
-        ),
-      );
-
     this.statusText.y =
-      this.statusPanelTop +
-      8 -
-      this.statusScrollOffset;
+      this.statusPanelTop + 12 - this.statusScrollOffset;
   }
 
   // ------------------------------------------------
@@ -1287,29 +695,17 @@ class BattleBallzScene
   // ------------------------------------------------
 
   private removeDeadUnits(): void {
-    const deadUnits =
-      this.units.filter(
-        (unit) =>
-          !unit.isAlive(),
-      );
+    const deadUnits = this.units.filter((unit) => !unit.isAlive());
 
-    if (
-      deadUnits.length === 0
-    ) {
+    if (deadUnits.length === 0) {
       return;
     }
 
-    for (
-      const unit of deadUnits
-    ) {
+    for (const unit of deadUnits) {
       unit.destroy();
     }
 
-    this.units =
-      this.units.filter(
-        (unit) =>
-          unit.isAlive(),
-      );
+    this.units = this.units.filter((unit) => unit.isAlive());
   }
 
   // ------------------------------------------------
@@ -1317,27 +713,14 @@ class BattleBallzScene
   // ------------------------------------------------
 
   private togglePause(): void {
-    this.isPaused =
-      !this.isPaused;
+    this.isPaused = !this.isPaused;
 
-    if (
-      this.isPaused
-    ) {
-      this.pauseStatusText.setText(
-        "PAUSED — press P to resume",
-      );
-
-      this.pauseButtonText.setText(
-        "RESUME [P]",
-      );
+    if (this.isPaused) {
+      this.pauseStatusText.setText("PAUSED — tap Resume");
+      this.pauseButtonText.setText("RESUME");
     } else {
-      this.pauseStatusText.setText(
-        "RUNNING — press P",
-      );
-
-      this.pauseButtonText.setText(
-        "PAUSE [P]",
-      );
+      this.pauseStatusText.setText("RUNNING — tap Pause");
+      this.pauseButtonText.setText("PAUSE");
     }
   }
 }
