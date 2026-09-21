@@ -24,10 +24,6 @@ import {
   DamageType,
 } from "./Damage";
 
-import type {
-  TeamId,
-} from "./Team";
-
 export class Unit {
   // --------------------------------------------------
   // VISUAL
@@ -47,6 +43,7 @@ export class Unit {
     Readonly<UnitConfig>;
 
   public readonly name: string;
+  public readonly teamId: number;
   public readonly instanceNumber: number;
 
   // --------------------------------------------------
@@ -65,8 +62,6 @@ export class Unit {
   public readonly physics:
     Physics;
   
-  public readonly teamId: TeamId;
-
   constructor(
     scene: Phaser.Scene,
     config: UnitConfig,
@@ -74,13 +69,13 @@ export class Unit {
     y: number,
     arenaWidth: number,
     arenaHeight: number,
+    teamId: number,
     instanceNumber: number,
-    teamId: TeamId,
   ) {
     this.config = config;
     this.name = config.name;
-    this.instanceNumber = instanceNumber;
     this.teamId = teamId;
+    this.instanceNumber = instanceNumber;
 
     const stats =
       config.stats;
@@ -204,6 +199,15 @@ export class Unit {
       );
 
     if (!collisionOccurred) {
+      return;
+    }
+
+    // Same-team units still physically collide,
+    // but they cannot damage each other.
+    if (
+      this.teamId ===
+      other.teamId
+    ) {
       return;
     }
 
