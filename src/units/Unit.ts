@@ -8,17 +8,24 @@ import type { UnitConfig } from "./UnitConfig";
 import { DamageType } from "./Damage";
 
 export class Unit {
-  // VISUAL
+  // --------------------------------------------------
+  // VISUALS
+  // --------------------------------------------------
   public readonly sprite: Phaser.GameObjects.Image;
-  public readonly healthCircle: Phaser.GameObjects.Graphics;
+  public readonly healthBarBg: Phaser.GameObjects.Rectangle;
+  public readonly healthBarFill: Phaser.GameObjects.Rectangle;
 
+  // --------------------------------------------------
   // CONFIGURATION
+  // --------------------------------------------------
   public readonly config: Readonly<UnitConfig>;
   public readonly name: string;
   public readonly teamId: number;
   public readonly instanceNumber: number;
 
+  // --------------------------------------------------
   // SYSTEMS
+  // --------------------------------------------------
   public readonly movement: Movement;
   public readonly combat: Combat;
   public readonly health: Health;
@@ -57,18 +64,43 @@ export class Unit {
     this.movement = new Movement(stats.speed, config.movementType);
     this.movement.initialize(this.physics);
 
-    // Visual: Rectangular Icon Sprite
+    // Unit Sprite
     this.sprite = scene.add.image(x, y, config.icon);
     this.sprite.setDisplaySize(stats.width, stats.height);
     this.sprite.setDepth(10);
 
-    // Health overlay graphic
-    this.healthCircle = scene.add.graphics();
-    this.healthCircle.setDepth(11);
+    // Health Bar - Background (Dark Gray Frame)
+    const barWidth = Math.max(30, stats.width);
+    const barHeight = 6;
+    const barOffsetY = stats.height / 2 + 8;
 
-    this.updateHealthCircle();
+    this.healthBarBg = scene.add.rectangle(
+      x,
+      y - barOffsetY,
+      barWidth,
+      barHeight,
+      0x111111,
+    );
+    this.healthBarBg.setDepth(11);
+    this.healthBarBg.setStrokeStyle(1, 0x000000, 0.8);
+
+    // Health Bar - Fill (Colored Bar)
+    this.healthBarFill = scene.add.rectangle(
+      x - barWidth / 2, // Left origin for scaleX shrinking
+      y - barOffsetY,
+      barWidth,
+      barHeight - 2,
+      0x22c55e,
+    );
+    this.healthBarFill.setOrigin(0, 0.5); // Anchor to left edge
+    this.healthBarFill.setDepth(12);
+
+    this.updateHealthBar();
   }
 
+  // --------------------------------------------------
+  // UPDATE
+  // --------------------------------------------------
   update(deltaSeconds: number): void {
     this.combat.update(deltaSeconds);
 
@@ -81,10 +113,52 @@ export class Unit {
     this.physics.handleWallCollision();
 
     this.syncSpriteToPhysics();
-    this.updateHealthCircle();
   }
 
-  resolveCollision(other: Unit): void {
+  // --------------------------------------------------
+  // POSITION SYNCHRONIZATION
+  // --------------------------------------------------
+  private syncSpriteToPhysics(): void {
+    const x = this.physics.x;
+    const y = this.physics.y;
+    const barOffsetY = this.physics.height / 2 + 8;
+    const barWidth = Math.max(30, this.physics.width);
+
+    this.sprite.setPosition(x, y);
+    this.healthBarBg.setPosition(x, y - barOffsetY);
+    this.healthBarFill.setPosition(x - barWidth / 2, y - barOffsetY);
+  }
+
+  // --------------------------------------------------
+  // HEALTH BAR UPDATE (FAST SCALE ADAPTATION)
+  // --------------------------------------------------
+  private updateHealthBar(): void {
+    if (!this.isAlive()) {
+      return;
+    }
+
+    const healthRatio = this.getHealthRatio();
+
+    // Scale fill bar horizontally from left origin
+    this.healthBarFill.setScale(Phaser.Math.Clamp(healthRatio, 0, 1), 1);
+
+    // Dynamic color change based on health ratio
+    const color = this.getHealthColor(healthRatio);
+    this.healthBarFill.setFillStyle(color);
+  }
+
+  private getHealthColor(healthRatio: number): number {
+    if (healthRatio > 0.75) return 0x22c55e; // Green
+    if (healthRatio > 0.5) return 0x84cc16;  // Lime
+    if (healthRatio > 0.25) return 0xfacc15; // Yellow
+    if (healthRatio > 0.1) return 0xf97316;  // Orange
+    return 0xef4444;                          // Red
+  }
+
+  // --------------------------------------------------
+  // DAMAGE & DEATH
+  // --------------------------------------------------
+  public resolveCollision(other: Unit): void {
     if (!this.isAlive() || !other.isAlive()) {
       return;
     }
@@ -137,7 +211,7 @@ export class Unit {
     }
 
     this.health.takeDamage(amount);
-    this.updateHealthCircle();
+    this.updateHealthBar(); // Only updates bar visuals when damage is taken
 
     if (!this.isAlive()) {
       this.die();
@@ -146,7 +220,8 @@ export class Unit {
 
   private die(): void {
     this.sprite.setVisible(false);
-    this.healthCircle.setVisible(false);
+    this.healthBarBg.setVisible(false);
+    this.healthBarFill.setVisible(false);
   }
 
   public isAlive(): boolean {
@@ -173,90 +248,9 @@ export class Unit {
     return this.health.getMaxShield();
   }
 
-  private syncSpriteToPhysics(): void {
-    this.sprite.setPosition(this.physics.x, this.physics.y);
-  }
-
-  private updateHealthCircle(): void {
-    this.healthCircle.clear();
-
-    if (!this.isAlive()) {
-      return;
-    }
-
-    const centerX = this.physics.x;
-    const centerY = this.physics.y;
-    const circleRadius = Math.max(3, this.physics.radius + 4);
-
-    this.healthCircle.lineStyle(4, 0x111111, 0.9);
-    this.drawHealthCircle(centerX, centerY, circleRadius, 0, Math.PI * 2);
-
-    const healthRatio = this.getHealthRatio();
-    const color = this.getHealthColor(healthRatio);
-    const endAngle = -Math.PI / 2 + Math.PI * 2 * healthRatio;
-
-    this.healthCircle.lineStyle(5, color, 1);
-    this.drawHealthCircle(centerX, centerY, circleRadius, -Math.PI / 2, endAngle);
-  }
-
-  private getHealthColor(healthRatio: number): number {
-    const ratio = Phaser.Math.Clamp(healthRatio, 0, 1);
-
-    const colorStops = [
-      { ratio: 1.0, r: 34, g: 197, b: 94 },
-      { ratio: 0.75, r: 132, g: 204, b: 22 },
-      { ratio: 0.5, r: 250, g: 204, b: 21 },
-      { ratio: 0.25, r: 249, g: 115, b: 22 },
-      { ratio: 0.0, r: 239, g: 68, b: 68 },
-    ];
-
-    for (let i = 0; i < colorStops.length - 1; i++) {
-      const upper = colorStops[i];
-      const lower = colorStops[i + 1];
-
-      if (ratio <= upper.ratio && ratio >= lower.ratio) {
-        const range = upper.ratio - lower.ratio;
-        const progress = range === 0 ? 0 : (upper.ratio - ratio) / range;
-
-        const r = Math.round(Phaser.Math.Linear(upper.r, lower.r, progress));
-        const g = Math.round(Phaser.Math.Linear(upper.g, lower.g, progress));
-        const b = Math.round(Phaser.Math.Linear(upper.b, lower.b, progress));
-
-        return (r << 16) | (g << 8) | b;
-      }
-    }
-
-    return 0xef4444;
-  }
-
-  private drawHealthCircle(
-    centerX: number,
-    centerY: number,
-    radius: number,
-    startAngle: number,
-    endAngle: number,
-  ): void {
-    this.healthCircle.beginPath();
-    const steps = 60;
-
-    for (let i = 0; i <= steps; i++) {
-      const progress = i / steps;
-      const angle = startAngle + (endAngle - startAngle) * progress;
-      const x = centerX + Math.cos(angle) * radius;
-      const y = centerY + Math.sin(angle) * radius;
-
-      if (i === 0) {
-        this.healthCircle.moveTo(x, y);
-      } else {
-        this.healthCircle.lineTo(x, y);
-      }
-    }
-
-    this.healthCircle.strokePath();
-  }
-
   public destroy(): void {
     this.sprite.destroy();
-    this.healthCircle.destroy();
+    this.healthBarBg.destroy();
+    this.healthBarFill.destroy();
   }
 }

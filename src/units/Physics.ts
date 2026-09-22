@@ -93,33 +93,41 @@ export class Physics {
     }
   }
 
-  // RECTANGULAR UNIT COLLISION
+  // RECTANGULAR UNIT COLLISION WITH FAST GAURD CHECK
   resolveCollision(other: Physics): boolean {
+    const dx = other.x - this.x;
+    const dy = other.y - this.y;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
     const halfWidthA = this.width / 2;
     const halfHeightA = this.height / 2;
     const halfWidthB = other.width / 2;
     const halfHeightB = other.height / 2;
 
-    // Calculate distance between centers
-    const dx = other.x - this.x;
-    const dy = other.y - this.y;
+    const maxAllowedX = halfWidthA + halfWidthB;
+    const maxAllowedY = halfHeightA + halfHeightB;
 
-    // Calculate overlap on both axes
-    const overlapX = halfWidthA + halfWidthB - Math.abs(dx);
-    const overlapY = halfHeightA + halfHeightB - Math.abs(dy);
-
-    // If there's no overlap on either axis, no collision occurred
-    if (overlapX <= 0 || overlapY <= 0) {
+    // --------------------------------------------------
+    // FAST GAURD CHECK (Fails fast if clearly not colliding)
+    // --------------------------------------------------
+    if (absDx >= maxAllowedX || absDy >= maxAllowedY) {
       return false;
     }
+
+    // --------------------------------------------------
+    // FULL RECTANGLE INTERSECTION MATH
+    // --------------------------------------------------
+    const overlapX = maxAllowedX - absDx;
+    const overlapY = maxAllowedY - absDy;
 
     let normalX = 0;
     let normalY = 0;
     let penetration = 0;
 
-    // Resolve along the axis with the smallest overlap (shallowest penetration)
     if (overlapX < overlapY) {
-      penetration = overlapX + 1.0; // Add 1px buffer to prevent corner clipping
+      penetration = overlapX + 1.0;
       normalX = dx < 0 ? -1 : 1;
       normalY = 0;
     } else {
@@ -128,7 +136,7 @@ export class Physics {
       normalY = dy < 0 ? -1 : 1;
     }
 
-    // Separate the two rectangles
+    // Separate rectangles
     this.x -= normalX * (penetration / 2);
     this.y -= normalY * (penetration / 2);
 
@@ -139,18 +147,17 @@ export class Physics {
     this.handleWallCollision();
     other.handleWallCollision();
 
-    // Calculate relative velocity along the collision normal
+    // Calculate relative velocity along collision normal
     const relativeVelocityX = other.velocityX - this.velocityX;
     const relativeVelocityY = other.velocityY - this.velocityY;
 
     const velocityAlongNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
 
-    // Do not bounce if already moving apart
     if (velocityAlongNormal > 0) {
       return false;
     }
 
-    // Impulse calculation for rectangle bounce
+    // Impulse response
     const impulse = (-2 * velocityAlongNormal) / (this.mass + other.mass);
 
     this.velocityX -= impulse * other.mass * normalX;

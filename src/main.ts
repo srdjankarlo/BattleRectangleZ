@@ -119,12 +119,10 @@ class BattleBallzScene extends Phaser.Scene {
   private pauseButtonBackground!: Phaser.GameObjects.Rectangle;
   private pauseButtonText!: Phaser.GameObjects.Text;
   private restartButtonBackground!: Phaser.GameObjects.Rectangle;
-  // private restartButtonText!: Phaser.GameObjects.Text;
 
   // Battle status
   private statsLabelsText!: Phaser.GameObjects.Text;
   private statsValuesText!: Phaser.GameObjects.Text;
-  // private statsContentWidth = 0;
   private statsLabelsBackground!: Phaser.GameObjects.Rectangle;
 
   private statsDragging = false;
@@ -137,6 +135,8 @@ class BattleBallzScene extends Phaser.Scene {
   private battleElapsedSeconds = 0;
   private battleFinished = false;
   private initialTeamCount = 0;
+
+  private uiUpdateTimer = 0;
 
   constructor() {
     super("BattleBallzScene");
@@ -156,30 +156,19 @@ class BattleBallzScene extends Phaser.Scene {
       maximumScroll,
     );
 
-    this.statsValuesText.x =
-      96 - this.statsScrollOffsetX;
+    this.statsValuesText.x = 96 - this.statsScrollOffsetX;
   }
 
-  private formatDuration(
-    totalSeconds: number,
-  ): string {
-    const total =
-      Math.floor(totalSeconds);
+  private formatDuration(totalSeconds: number): string {
+    const total = Math.floor(totalSeconds);
+    const minutes = Math.floor(total / 60);
+    const seconds = total % 60;
 
-    const minutes =
-      Math.floor(total / 60);
-
-    const seconds =
-      total % 60;
-
-    return `${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds
+    return `${minutes.toString().padStart(2, "0")}:${seconds
       .toString()
       .padStart(2, "0")}`;
   }
 
-  // Inside BattleBallzScene in main.ts
   preload(): void {
     // Preload UI icons
     this.load.image("icon-hp", "assets/icons/HP.png");
@@ -268,7 +257,6 @@ class BattleBallzScene extends Phaser.Scene {
     this.unitCounters.clear();
     this.isPaused = false;
     this.statsScrollOffsetX = 0;
-    // this.statsContentWidth = 0;
     this.statsDragging = false;
     this.statsLastPointerX = 0;
 
@@ -283,7 +271,7 @@ class BattleBallzScene extends Phaser.Scene {
     const uiObjects: Phaser.GameObjects.GameObject[] = [];
 
     // ----------------------------------------------
-    // WORLD CAMERA (ARENA MATCHES FULL PHONE WIDTH)
+    // WORLD CAMERA
     // ----------------------------------------------
 
     const worldCamera = this.cameras.main;
@@ -355,7 +343,9 @@ class BattleBallzScene extends Phaser.Scene {
         );
 
         this.units.push(unit);
-        worldObjects.push(unit.sprite, unit.healthCircle);
+        
+        // Push unit game objects into worldObjects so uiCamera ignores them
+        worldObjects.push(unit.sprite, unit.healthBarBg, unit.healthBarFill);
       }
     }
 
@@ -415,92 +405,49 @@ class BattleBallzScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x6f53ff)
         .setInteractive({ useHandCursor: true });
 
-      const text = this.add.text(
-        x,
-        buttonY,
-        label,
-        {
-          fontSize: "20px",
-          fontStyle: "bold",
-          color: "#ffffff",
-        },
-      );
+      const text = this.add.text(x, buttonY, label, {
+        fontSize: "20px",
+        fontStyle: "bold",
+        color: "#ffffff",
+      });
 
       text.setOrigin(0.5, 0.5);
 
       uiObjects.push(background, text);
 
-      return {
-        background,
-        text,
-      };
+      return { background, text };
     };
 
     // RESTART
-    const restartButton = createButton(
-      85,
-      "RESTART",
-    );
-
-    this.restartButtonBackground =
-      restartButton.background;
-
-    // this.restartButtonText =
-    //   restartButton.text;
-
-    this.restartButtonBackground.on(
-      "pointerdown",
-      () => {
-        restartBattle();
-      },
-    );
+    const restartButton = createButton(85, "RESTART");
+    this.restartButtonBackground = restartButton.background;
+    this.restartButtonBackground.on("pointerdown", () => {
+      restartBattle();
+    });
 
     // PAUSE
-    const pauseButton = createButton(
-      270,
-      "PAUSE",
-    );
-
-    this.pauseButtonBackground =
-      pauseButton.background;
-
-    this.pauseButtonText =
-      pauseButton.text;
-
-    this.pauseButtonBackground.on(
-      "pointerdown",
-      () => {
-        this.togglePause();
-      },
-    );
+    const pauseButton = createButton(270, "PAUSE");
+    this.pauseButtonBackground = pauseButton.background;
+    this.pauseButtonText = pauseButton.text;
+    this.pauseButtonBackground.on("pointerdown", () => {
+      this.togglePause();
+    });
 
     // MENU
-    const menuButton = createButton(
-      455,
-      "MENU",
-    );
-
-    menuButton.background.on(
-      "pointerdown",
-      () => {
-        returnToMenu();
-      },
-    );
+    const menuButton = createButton(455, "MENU");
+    menuButton.background.on("pointerdown", () => {
+      returnToMenu();
+    });
 
     // ----------------------------------------------
     // RUNNING / PAUSED STATUS
     // ----------------------------------------------
 
-    this.pauseStatusText = this.add.text(
-      270,
-      70,
-      "RUNNING",
-      {
-        fontSize: "18px",
-        fontStyle: "bold",
-        color: "#a0a0b8",
-      },
-    );
+    this.pauseStatusText = this.add.text(270, 70, "RUNNING", {
+      fontSize: "18px",
+      fontStyle: "bold",
+      color: "#a0a0b8",
+    });
 
     this.pauseStatusText.setOrigin(0.5, 0);
     uiObjects.push(this.pauseStatusText);
@@ -520,9 +467,7 @@ class BattleBallzScene extends Phaser.Scene {
       0x1a1924,
     );
 
-    statsPanelBackground
-      .setOrigin(0, 0)
-      .setStrokeStyle(2, 0x3d3954);
+    statsPanelBackground.setOrigin(0, 0).setStrokeStyle(2, 0x3d3954);
 
     uiObjects.push(statsPanelBackground);
 
@@ -554,36 +499,24 @@ class BattleBallzScene extends Phaser.Scene {
     );
 
     uiObjects.push(this.statsLabelsText);
-
     this.statsLabelsText.setDepth(10);
 
     // ----------------------------------------------
     // SCROLLABLE UNIT COLUMNS
     // ----------------------------------------------
 
-    this.statsValuesText = this.add.text(
-      96,
-      statsPanelTop + 12,
-      "",
-      {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: "#eeeeee",
-        lineSpacing: 6,
-      },
-    );
+    this.statsValuesText = this.add.text(96, statsPanelTop + 12, "", {
+      fontFamily: "monospace",
+      fontSize: "18px",
+      color: "#eeeeee",
+      lineSpacing: 6,
+    });
 
     uiObjects.push(this.statsValuesText);
 
     const statsMaskShape = new Phaser.GameObjects.Graphics(this);
-
     statsMaskShape.fillStyle(0xffffff, 1);
-    statsMaskShape.fillRect(
-      96,
-      statsPanelTop,
-      444,
-      statsPanelHeight,
-    );
+    statsMaskShape.fillRect(96, statsPanelTop, 444, statsPanelHeight);
 
     const statsMask = statsMaskShape.createGeometryMask();
     this.statsValuesText.setMask(statsMask);
@@ -596,10 +529,8 @@ class BattleBallzScene extends Phaser.Scene {
       0x1a1924,
     );
 
-    this.statsLabelsBackground
-      .setOrigin(0, 0)
-      .setDepth(20);
-    
+    this.statsLabelsBackground.setOrigin(0, 0).setDepth(20);
+
     uiObjects.push(this.statsLabelsBackground);
 
     this.statsLabelsText.setDepth(21);
@@ -634,19 +565,13 @@ class BattleBallzScene extends Phaser.Scene {
         _deltaX: number,
         deltaY: number,
       ) => {
-        if (
-          !pointer.event.shiftKey
-        ) {
+        if (!pointer.event.shiftKey) {
           return;
         }
 
         if (
-          pointer.y <
-            this.uiViewportTop + statsPanelTop ||
-          pointer.y >
-            this.uiViewportTop +
-              statsPanelTop +
-              statsPanelHeight
+          pointer.y < this.uiViewportTop + statsPanelTop ||
+          pointer.y > this.uiViewportTop + statsPanelTop + statsPanelHeight
         ) {
           return;
         }
@@ -655,52 +580,33 @@ class BattleBallzScene extends Phaser.Scene {
       },
     );
 
-    this.input.on(
-      "pointerdown",
-      (pointer: Phaser.Input.Pointer) => {
-        if (
-          pointer.y >= this.uiViewportTop + statsPanelTop &&
-          pointer.y <=
-            this.uiViewportTop +
-            statsPanelTop +
-            statsPanelHeight
-        ) {
-          this.statsDragging = true;
-          this.statsLastPointerX = pointer.x;
-        }
-      },
-    );
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (
+        pointer.y >= this.uiViewportTop + statsPanelTop &&
+        pointer.y <= this.uiViewportTop + statsPanelTop + statsPanelHeight
+      ) {
+        this.statsDragging = true;
+        this.statsLastPointerX = pointer.x;
+      }
+    });
 
-    this.input.on(
-      "pointermove",
-      (pointer: Phaser.Input.Pointer) => {
-        if (!this.statsDragging) {
-          return;
-        }
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (!this.statsDragging) {
+        return;
+      }
 
-        const movement =
-          this.statsLastPointerX - pointer.x;
+      const movement = this.statsLastPointerX - pointer.x;
+      this.statsLastPointerX = pointer.x;
+      this.scrollStats(movement);
+    });
 
-        this.statsLastPointerX =
-          pointer.x;
+    this.input.on("pointerup", () => {
+      this.statsDragging = false;
+    });
 
-        this.scrollStats(movement);
-      },
-    );
-
-    this.input.on(
-      "pointerup",
-      () => {
-        this.statsDragging = false;
-      },
-    );
-
-    this.input.on(
-      "pointerupoutside",
-      () => {
-        this.statsDragging = false;
-      },
-    );
+    this.input.on("pointerupoutside", () => {
+      this.statsDragging = false;
+    });
   }
 
   // ------------------------------------------------
@@ -754,6 +660,7 @@ class BattleBallzScene extends Phaser.Scene {
 
     if (!this.isPaused && !this.battleFinished) {
       this.battleElapsedSeconds += deltaSeconds;
+
       for (const unit of this.units) {
         unit.update(deltaSeconds);
       }
@@ -765,11 +672,13 @@ class BattleBallzScene extends Phaser.Scene {
       }
 
       this.removeDeadUnits();
-      this.checkBattleEnd();
-    }
 
-    if (!this.battleFinished) {
-      this.updateStatus();
+      // Throttle UI update to 10 FPS (100ms interval)
+      this.uiUpdateTimer += delta;
+      if (this.uiUpdateTimer >= 100) {
+        this.updateStatus();
+        this.uiUpdateTimer = 0;
+      }
     }
   }
 
@@ -778,16 +687,12 @@ class BattleBallzScene extends Phaser.Scene {
   // ------------------------------------------------
 
   private updateStatus(): void {
-    // Define stat labels matching your rows 0 through 9
-    // const rowLabels = [
-    //   "TEAM", "UNIT", "HP", "ARM", "MR", "SHLD", "AD", "MS", "MASS", "MOVE"
-    // ];
-
     const rows: string[][] = Array.from({ length: 10 }, () => []);
 
     for (const unit of this.units) {
       const sameNameCount = this.units.filter((u) => u.name === unit.name).length;
-      const displayName = sameNameCount > 1 ? `${unit.name} #${unit.instanceNumber}` : unit.name;
+      const displayName =
+        sameNameCount > 1 ? `${unit.name} #${unit.instanceNumber}` : unit.name;
       const stats = unit.config.stats;
 
       rows[0].push(unit.teamId.toString());
@@ -795,62 +700,51 @@ class BattleBallzScene extends Phaser.Scene {
       rows[2].push(`${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`);
       rows[3].push(stats.armor.toString());
       rows[4].push(stats.magicResistance.toString());
-      rows[5].push(stats.maxShield > 0 ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}` : "0.0/0.0");
+      rows[5].push(
+        stats.maxShield > 0
+          ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}`
+          : "0.0/0.0",
+      );
       rows[6].push(stats.bodyAttackDamage.toString());
       rows[7].push(stats.speed.toString());
       rows[8].push(stats.mass.toString());
       rows[9].push(unit.config.movementType.toUpperCase());
     }
 
-    const COLUMN_WIDTH = 18; // Reduced slightly to prevent canvas overflow on small mobile viewports
+    const COLUMN_WIDTH = 18;
 
-    // Join columns horizontally per row, then join rows with explicit newlines \n
     const formattedLines = rows.map((rowValues) => {
       return rowValues
         .map((val) => val.slice(0, COLUMN_WIDTH).padEnd(COLUMN_WIDTH, " "))
         .join("");
     });
 
-    // Explicitly set text with forced newline delimiter
     this.statsValuesText.setText(formattedLines.join("\n"));
   }
 
   // ------------------------------------------------
-    // DEAD UNITS
-    // ------------------------------------------------
+  // DEAD UNITS & WIN CONDITION
+  // ------------------------------------------------
 
   private checkBattleEnd(): void {
-    // A one-team simulation has nobody to fight.
     if (this.initialTeamCount < 2) {
       return;
     }
 
-    const aliveTeams = new Set(
-      this.units.map(
-        (unit) => unit.teamId,
-      ),
-    );
+    const aliveTeams = new Set(this.units.map((unit) => unit.teamId));
 
-    // Everybody died at the same time.
     if (aliveTeams.size === 0) {
       this.showBattleResult(null);
       return;
     }
 
-    // Exactly one team remains.
     if (aliveTeams.size === 1) {
-      const winningTeamId =
-        [...aliveTeams][0];
-
-      this.showBattleResult(
-        winningTeamId,
-      );
+      const winningTeamId = [...aliveTeams][0];
+      this.showBattleResult(winningTeamId);
     }
   }
 
-  private showBattleResult(
-    winningTeamId: number | null,
-  ): void {
+  private showBattleResult(winningTeamId: number | null): void {
     if (this.battleFinished) {
       return;
     }
@@ -858,98 +752,38 @@ class BattleBallzScene extends Phaser.Scene {
     this.battleFinished = true;
     this.isPaused = true;
 
-    const resultObjects:
-      Phaser.GameObjects.GameObject[] = [];
+    const resultObjects: Phaser.GameObjects.GameObject[] = [];
 
-    // ----------------------------------------------
-    // RESULT CAMERA
-    // ----------------------------------------------
-
-    const resultCamera = this.cameras.add(
-      0,
-      0,
-      540,
-      900,
-    );
-
+    const resultCamera = this.cameras.add(0, 0, 540, 900);
     resultCamera.setScroll(0, 0);
 
-    // ----------------------------------------------
-    // DARK OVERLAY
-    // ----------------------------------------------
-
-    const overlay = this.add.rectangle(
-      270,
-      450,
-      540,
-      900,
-      0x07070b,
-      0.97,
-    );
-
+    const overlay = this.add.rectangle(270, 450, 540, 900, 0x07070b, 0.97);
     overlay.setDepth(100);
+    resultObjects.push(overlay);
 
-    resultObjects.push(
-      overlay,
-    );
-
-    // ----------------------------------------------
-    // TITLE
-    // ----------------------------------------------
-
-    const title = this.add.text(
-      270,
-      100,
-      "BATTLE OVER",
-      {
-        fontSize: "34px",
-        fontStyle: "bold",
-        color: "#ffffff",
-      },
-    );
-
-    title
-      .setOrigin(0.5, 0)
-      .setDepth(101);
-
+    const title = this.add.text(270, 100, "BATTLE OVER", {
+      fontSize: "34px",
+      fontStyle: "bold",
+      color: "#ffffff",
+    });
+    title.setOrigin(0.5, 0).setDepth(101);
     resultObjects.push(title);
 
-    // ----------------------------------------------
-    // RESULT
-    // ----------------------------------------------
-
     const resultText =
-      winningTeamId === null
-        ? "DRAW"
-        : `TEAM ${winningTeamId} WINS`;
+      winningTeamId === null ? "DRAW" : `TEAM ${winningTeamId} WINS`;
 
-    const result = this.add.text(
-      270,
-      165,
-      resultText,
-      {
-        fontSize: "30px",
-        fontStyle: "bold",
-        color: "#a98cff",
-      },
-    );
-
-    result
-      .setOrigin(0.5, 0)
-      .setDepth(101);
-
+    const result = this.add.text(270, 165, resultText, {
+      fontSize: "30px",
+      fontStyle: "bold",
+      color: "#a98cff",
+    });
+    result.setOrigin(0.5, 0).setDepth(101);
     resultObjects.push(result);
-
-    // ----------------------------------------------
-    // DURATION
-    // ----------------------------------------------
 
     const duration = this.add.text(
       270,
       230,
-      `DURATION\n${this.formatDuration(
-        this.battleElapsedSeconds,
-      )}`,
+      `DURATION\n${this.formatDuration(this.battleElapsedSeconds)}`,
       {
         fontFamily: "monospace",
         fontSize: "20px",
@@ -957,198 +791,90 @@ class BattleBallzScene extends Phaser.Scene {
         align: "center",
       },
     );
-
-    duration
-      .setOrigin(0.5, 0)
-      .setDepth(101);
-
+    duration.setOrigin(0.5, 0).setDepth(101);
     resultObjects.push(duration);
 
-    // ----------------------------------------------
-    // SURVIVORS
-    // ----------------------------------------------
+    const survivors = this.units.map((unit) => {
+      const sameNameCount = this.units.filter(
+        (other) => other.name === unit.name,
+      ).length;
 
-    const survivors = this.units.map(
-      (unit) => {
-        const sameNameCount =
-          this.units.filter(
-            (other) =>
-              other.name === unit.name,
-          ).length;
+      const displayName =
+        sameNameCount > 1
+          ? `${unit.name} #${unit.instanceNumber}`
+          : unit.name;
 
-        const displayName =
-          sameNameCount > 1
-            ? `${unit.name} #${unit.instanceNumber}`
-            : unit.name;
-
-        return `TEAM ${unit.teamId}  ${displayName}`;
-      },
-    );
+      return `TEAM ${unit.teamId}  ${displayName}`;
+    });
 
     const survivorText =
-      survivors.length > 0
-        ? survivors.join("\n")
-        : "NO SURVIVORS";
+      survivors.length > 0 ? survivors.join("\n") : "NO SURVIVORS";
 
-    const survivorsTitle =
-      this.add.text(
-        270,
-        310,
-        "SURVIVORS",
-        {
-          fontSize: "18px",
-          fontStyle: "bold",
-          color: "#8e8aa3",
-        },
-      );
+    const survivorsTitle = this.add.text(270, 310, "SURVIVORS", {
+      fontSize: "18px",
+      fontStyle: "bold",
+      color: "#8e8aa3",
+    });
+    survivorsTitle.setOrigin(0.5, 0).setDepth(101);
+    resultObjects.push(survivorsTitle);
 
-    survivorsTitle
-      .setOrigin(0.5, 0)
-      .setDepth(101);
-
-    resultObjects.push(
-      survivorsTitle,
-    );
-
-    const survivorsList =
-      this.add.text(
-        270,
-        345,
-        survivorText,
-        {
-          fontFamily: "monospace",
-          fontSize: "19px",
-          color: "#ffffff",
-          align: "center",
-          lineSpacing: 8,
-        },
-      );
-
-    survivorsList
-      .setOrigin(0.5, 0)
-      .setDepth(101);
-
-    resultObjects.push(
-      survivorsList,
-    );
-
-    // ----------------------------------------------
-    // BUTTON CREATOR
-    // ----------------------------------------------
+    const survivorsList = this.add.text(270, 345, survivorText, {
+      fontFamily: "monospace",
+      fontSize: "19px",
+      color: "#ffffff",
+      align: "center",
+      lineSpacing: 8,
+    });
+    survivorsList.setOrigin(0.5, 0).setDepth(101);
+    resultObjects.push(survivorsList);
 
     const createResultButton = (
       y: number,
       label: string,
     ): Phaser.GameObjects.Rectangle => {
-      const background =
-        this.add.rectangle(
-          270,
-          y,
-          260,
-          56,
-          0x2e2a40,
-        );
-
+      const background = this.add.rectangle(270, y, 260, 56, 0x2e2a40);
       background
-        .setStrokeStyle(
-          2,
-          0x6f53ff,
-        )
-        .setInteractive({
-          useHandCursor: true,
-        })
+        .setStrokeStyle(2, 0x6f53ff)
+        .setInteractive({ useHandCursor: true })
         .setDepth(101);
 
-      const text =
-        this.add.text(
-          270,
-          y,
-          label,
-          {
-            fontSize: "21px",
-            fontStyle: "bold",
-            color: "#ffffff",
-          },
-        );
+      const text = this.add.text(270, y, label, {
+        fontSize: "21px",
+        fontStyle: "bold",
+        color: "#ffffff",
+      });
+      text.setOrigin(0.5).setDepth(102);
 
-      text
-        .setOrigin(0.5)
-        .setDepth(102);
-
-      resultObjects.push(
-        background,
-        text,
-      );
+      resultObjects.push(background, text);
 
       return background;
     };
 
-    // ----------------------------------------------
-    // PLAY AGAIN
-    // ----------------------------------------------
+    const playAgainButton = createResultButton(590, "PLAY AGAIN");
+    playAgainButton.on("pointerdown", () => {
+      restartBattle();
+    });
 
-    const playAgainButton =
-      createResultButton(
-        590,
-        "PLAY AGAIN",
-      );
+    const newBattleButton = createResultButton(665, "NEW BATTLE");
+    newBattleButton.on("pointerdown", () => {
+      returnToMenu();
+    });
 
-    playAgainButton.on(
-      "pointerdown",
-      () => {
-        restartBattle();
-      },
-    );
-
-    // ----------------------------------------------
-    // NEW BATTLE
-    // ----------------------------------------------
-
-    const newBattleButton =
-      createResultButton(
-        665,
-        "NEW BATTLE",
-      );
-
-    newBattleButton.on(
-      "pointerdown",
-      () => {
-        returnToMenu();
-      },
-    );
-
-    // ----------------------------------------------
-    // CAMERA ISOLATION
-    // ----------------------------------------------
-
-    // Existing cameras must not draw the result objects.
-    for (
-      const camera
-      of this.cameras.cameras
-    ) {
+    for (const camera of this.cameras.cameras) {
       if (camera !== resultCamera) {
-        camera.ignore(
-          resultObjects,
-        );
+        camera.ignore(resultObjects);
       }
     }
 
-    // Result camera should only draw result objects.
-    const nonResultObjects =
-      this.children.list.filter(
-        (object) =>
-          !resultObjects.includes(
-            object,
-          ),
-      );
-
-    resultCamera.ignore(
-      nonResultObjects,
+    const nonResultObjects = this.children.list.filter(
+      (object) => !resultObjects.includes(object),
     );
+
+    resultCamera.ignore(nonResultObjects);
   }
 
   // ------------------------------------------------
-  // DEAD UNITS
+  // REMOVE DEAD UNITS
   // ------------------------------------------------
 
   private removeDeadUnits(): void {
@@ -1163,6 +889,8 @@ class BattleBallzScene extends Phaser.Scene {
     }
 
     this.units = this.units.filter((unit) => unit.isAlive());
+
+    this.checkBattleEnd();
   }
 
   // ------------------------------------------------
