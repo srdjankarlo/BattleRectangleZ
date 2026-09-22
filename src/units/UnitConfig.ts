@@ -23,5 +23,5 @@ export interface UnitConfig {
 
   // Temporary prototype representation.
   // Eventually this will become sprites/animations.
-  color: number;
+  icon: string;
 }

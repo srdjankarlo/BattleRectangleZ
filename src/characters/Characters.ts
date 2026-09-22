@@ -1,147 +1,689 @@
-import {
-  MovementType,
-} from "../units/Movement";
+import { MovementType } from "../units/Movement";
+import type { UnitConfig } from "../units/UnitConfig";
 
-import type {
-  UnitConfig,
-} from "../units/UnitConfig";
+// Base icon path root
+const ICON_BASE = "/assets/icons/unit_icons";
 
 export const Characters = {
-  PEASANT: {
-    name: "Peasant",
-
+  // ==========================================
+  // 1. TANK DIVISION
+  // ==========================================
+  CYCLOPS: {
+    name: "Cyclops",
     stats: {
-      radius: 18,
-      speed: 150,
-      mass: 1,
-
-      maxHealth: 100,
-      bodyAttackDamage: 8,
-
-      armor: 0,
-      magicResistance: 0,
-
-      maxShield: 0,
-    },
-
-    movementType: MovementType.BOUNCE,
-
-    color: 0xc2a878,
-  },
-
-  KNIGHT: {
-    name: "Knight",
-
-    stats: {
-      radius: 22,
-      speed: 120,
-      mass: 2,
-
-      maxHealth: 100,
-      bodyAttackDamage: 15,
-
-      armor: 10,
+      width: 48,
+      height: 48,
+      speed: 75,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 20,
       magicResistance: 5,
-
       maxShield: 0,
     },
-
     movementType: MovementType.BOUNCE,
-
-    color: 0x888888,
+    icon: `${ICON_BASE}/tank/cyclops.png`,
   },
-
-  ARCHER: {
-    name: "Archer",
-
+  BEHEMOTH: {
+    name: "Behemoth",
     stats: {
-      radius: 19,
-      speed: 140,
-      mass: 1,
-
-      maxHealth: 80,
-      bodyAttackDamage: 6,
-
-      armor: 3,
-      magicResistance: 5,
-
+      width: 60,
+      height: 60,
+      speed: 50,
+      mass: 5,
+      maxHealth: 400,
+      bodyAttackDamage: 10,
+      armor: 20,
+      magicResistance: 20,
       maxShield: 0,
     },
-
-    movementType: MovementType.WANDER,
-
-    color: 0x4caf50,
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/tank/behemoth.png`,
   },
-
-  WIZARD: {
-    name: "Wizard",
-
+  GOLEM: {
+    name: "Golem",
     stats: {
-      radius: 20,
-      speed: 100,
-      mass: 1,
-
-      maxHealth: 80,
-      bodyAttackDamage: 4,
-
-      armor: 2,
-      magicResistance: 15,
-
+      width: 60,
+      height: 60,
+      speed: 75,
+      mass: 5,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 50,
+      magicResistance: 10,
       maxShield: 30,
     },
-
-    movementType: MovementType.JITTER,
-
-    color: 0x8e44ad,
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/tank/golem.png`,
+  },
+  DREADNOUGHT: {
+    name: "Dreadnought",
+    stats: {
+      width: 60,
+      height: 60,
+      speed: 50,
+      mass: 5,
+      maxHealth: 200,
+      bodyAttackDamage: 20,
+      armor: 50,
+      magicResistance: 10,
+      maxShield: 50,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/tank/dreadnought.png`,
+  },
+  LEGIONNAIRE: {
+    name: "Legionnaire",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 75,
+      mass: 3,
+      maxHealth: 150,
+      bodyAttackDamage: 5,
+      armor: 30,
+      magicResistance: 10,
+      maxShield: 30,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/tank/legionnaire.png`,
+  },
+  HYDRA: {
+    name: "Hydra",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 10,
+      magicResistance: 20,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/tank/hydra.png`,
+  },
+  YETI: {
+    name: "Yeti",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 10,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/tank/yeti.png`,
   },
 
-  GIANT: {
-    name: "Giant",
-
+  // ==========================================
+  // 2. FIGHTER & VANGUARD DIVISION
+  // ==========================================
+  PHOENIX: {
+    name: "Phoenix",
     stats: {
-      radius: 35,
-      speed: 70,
-      mass: 5,
-
-      maxHealth: 500,
-      bodyAttackDamage: 30,
-
+      width: 40,
+      height: 40,
+      speed: 125,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/fighter/phoenix.png`,
+  },
+  WEREWOLF: {
+    name: "Werewolf",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 125,
+      mass: 2,
+      maxHealth: 200,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.JITTER,
+    icon: `${ICON_BASE}/fighter/werewolf.png`,
+  },
+  TEMPLAR: {
+    name: "Templar",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 20,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/fighter/templar.png`,
+  },
+  GLADIATOR: {
+    name: "Gladiator",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 100,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 10,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/fighter/gladiator.png`,
+  },
+  SPARTAN: {
+    name: "Spartan",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
       armor: 20,
       magicResistance: 10,
-
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/fighter/spartan.png`,
+  },
+  SAMURAI: {
+    name: "Samurai",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 125,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 10,
       maxShield: 0,
     },
-
     movementType: MovementType.BOUNCE,
-
-    color: 0x795548,
+    icon: `${ICON_BASE}/fighter/samurai.png`,
+  },
+  VIKING: {
+    name: "Viking",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 10,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/fighter/viking.png`,
+  },
+  KNIGHT: {
+    name: "Knight",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 20,
+      magicResistance: 10,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/fighter/knight.png`,
   },
 
+  // ==========================================
+  // 3. ASSASSIN & SKIRMISHER DIVISION
+  // ==========================================
   GOBLIN: {
     name: "Goblin",
-
     stats: {
-      radius: 16,
-      speed: 180,
+      width: 32,
+      height: 32,
+      speed: 150,
       mass: 1,
-
       maxHealth: 50,
-      bodyAttackDamage: 8,
-
-      armor: 2,
-      magicResistance: 0,
-
+      bodyAttackDamage: 10,
+      armor: 5,
+      magicResistance: 5,
       maxShield: 0,
     },
-
     movementType: MovementType.JITTER,
-
-    color: 0x2ecc71,
+    icon: `${ICON_BASE}/assassin/goblin.png`,
   },
-} satisfies Record<
-  string,
-  UnitConfig
->;
+  VAMPIRE: {
+    name: "Vampire",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 10,
+      maxShield: 10,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/assassin/vampire.png`,
+  },
+  NINJA: {
+    name: "Ninja",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 150,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 25,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.JITTER,
+    icon: `${ICON_BASE}/assassin/ninja.png`,
+  },
+  CLOWN: {
+    name: "Clown",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 10,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.JITTER,
+    icon: `${ICON_BASE}/assassin/clown.png`,
+  },
+  COMMANDO: {
+    name: "Commando",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 125,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/assassin/commando.png`,
+  },
+  HACKER: {
+    name: "Hacker",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 5,
+      armor: 5,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/assassin/hacker.png`,
+  },
 
-export type CharacterId =
-  keyof typeof Characters;
+  // ==========================================
+  // 4. MARKSMAN & RANGE DIVISION
+  // ==========================================
+  ELF: {
+    name: "Elf",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/marksman/elf.png`,
+  },
+  SNIPER: {
+    name: "Sniper",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 75,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 30,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/marksman/sniper.png`,
+  },
+  GRENADIER: {
+    name: "Grenadier",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 100,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/marksman/grenadier.png`,
+  },
+  MUSKETEER: {
+    name: "Musketeer",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/marksman/musketeer.png`,
+  },
+  DRONE: {
+    name: "Drone",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 10,
+      armor: 5,
+      magicResistance: 10,
+      maxShield: 10,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/marksman/drone.png`,
+  },
+  LANCER: {
+    name: "Lancer",
+    stats: {
+      width: 40,
+      height: 40,
+      speed: 125,
+      mass: 2,
+      maxHealth: 100,
+      bodyAttackDamage: 15,
+      armor: 10,
+      magicResistance: 10,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/marksman/lancer.png`,
+  },
+
+  // ==========================================
+  // 5. MAGE & CASTER DIVISION
+  // ==========================================
+  DRAGON: {
+    name: "Dragon",
+    stats: {
+      width: 60,
+      height: 60,
+      speed: 100,
+      mass: 5,
+      maxHealth: 200,
+      bodyAttackDamage: 25,
+      armor: 20,
+      magicResistance: 50,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/mage/dragon.png`,
+  },
+  DRAKE: {
+    name: "Drake",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 125,
+      mass: 3,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 10,
+      magicResistance: 20,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/mage/drake.png`,
+  },
+  LICH: {
+    name: "Lich",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 75,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 30,
+      maxShield: 50,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/mage/lich.png`,
+  },
+  WITCH: {
+    name: "Witch",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.JITTER,
+    icon: `${ICON_BASE}/mage/witch.png`,
+  },
+  WIZARD: {
+    name: "Wizard",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/mage/wizard.png`,
+  },
+  PYROMANCER: {
+    name: "Pyromancer",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 50,
+      bodyAttackDamage: 25,
+      armor: 5,
+      magicResistance: 10,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/mage/pyromancer.png`,
+  },
+  BANSHEE: {
+    name: "Banshee",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 10,
+      armor: 5,
+      magicResistance: 50,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/mage/banshee.png`,
+  },
+
+  // ==========================================
+  // 6. SUPPORT & UTILITY DIVISION
+  // ==========================================
+  NECROMANCER: {
+    name: "Necromancer",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 75,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 5,
+      armor: 5,
+      magicResistance: 20,
+      maxShield: 10,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/support/necromancer.png`,
+  },
+  ALCHEMYST: {
+    name: "Alchemist",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 5,
+      armor: 10,
+      magicResistance: 10,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/support/alchemist.png`,
+  },
+  MEDIC: {
+    name: "Medic",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 5,
+      armor: 5,
+      magicResistance: 5,
+      maxShield: 0,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/support/medic.png`,
+  },
+  PLAGUE_DOCTOR: {
+    name: "Plague Doctor",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 100,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 5,
+      armor: 10,
+      magicResistance: 20,
+      maxShield: 0,
+    },
+    movementType: MovementType.WANDER,
+    icon: `${ICON_BASE}/support/plague_doctor.png`,
+  },
+  CYBORG: {
+    name: "Cyborg",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 100,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 20,
+      magicResistance: 10,
+      maxShield: 50,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/support/cyborg.png`,
+  },
+  KING: {
+    name: "King",
+    stats: {
+      width: 48,
+      height: 48,
+      speed: 75,
+      mass: 3,
+      maxHealth: 200,
+      bodyAttackDamage: 10,
+      armor: 10,
+      magicResistance: 10,
+      maxShield: 30,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/support/king.png`,
+  },
+  QUEEN: {
+    name: "Queen",
+    stats: {
+      width: 32,
+      height: 32,
+      speed: 125,
+      mass: 1,
+      maxHealth: 100,
+      bodyAttackDamage: 20,
+      armor: 5,
+      magicResistance: 20,
+      maxShield: 50,
+    },
+    movementType: MovementType.BOUNCE,
+    icon: `${ICON_BASE}/support/queen.png`,
+  },
+} satisfies Record<string, UnitConfig>;
+
+export type CharacterId = keyof typeof Characters;

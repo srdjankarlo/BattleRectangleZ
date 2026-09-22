@@ -179,45 +179,70 @@ class BattleBallzScene extends Phaser.Scene {
       .padStart(2, "0")}`;
   }
 
+  // Inside BattleBallzScene in main.ts
   preload(): void {
-    this.load.image(
-      "icon-hp",
-      "assets/icons/HP.png",
+    // Preload UI icons
+    this.load.image("icon-hp", "assets/icons/HP.png");
+    this.load.image("icon-arm", "assets/icons/ARM1.png");
+    this.load.image("icon-ad", "assets/icons/AD.png");
+
+    // Preload character unit icon images
+    for (const charKey of Object.keys(Characters)) {
+      const charConfig = Characters[charKey as keyof typeof Characters];
+      if (charConfig.icon) {
+        this.load.image(charConfig.icon, charConfig.icon);
+      }
+    }
+  }
+
+  // ------------------------------------------------
+  // CREATE UNIT
+  // ------------------------------------------------
+
+  private createUnitFromSelection(
+    selection: UnitSelection,
+    teamId: number,
+    teamIndex: number,
+    teamCount: number,
+    unitIndex: number,
+    unitsInTeam: number,
+  ): Unit {
+    const baseConfig = Characters[selection.characterId];
+
+    let config: UnitConfig = baseConfig;
+
+    if (selection.movementOverride !== "default") {
+      config = {
+        ...baseConfig,
+        movementType: selection.movementOverride as MovementType,
+      };
+    }
+
+    const baseName = config.name;
+    const currentCount = this.unitCounters.get(baseName) ?? 0;
+    const instanceNumber = currentCount + 1;
+
+    this.unitCounters.set(baseName, instanceNumber);
+
+    const unitSize = Math.max(config.stats.width, config.stats.height) / 2;
+
+    const position = this.getSpawnPosition(
+      teamIndex,
+      teamCount,
+      unitIndex,
+      unitsInTeam,
+      unitSize,
     );
 
-    this.load.image(
-      "icon-arm",
-      "assets/icons/ARM1.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/MR.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/SHLD.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/AD.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/MS.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/MASS.png",
-    );
-
-    this.load.image(
-      "icon-ad",
-      "assets/icons/MOVE.png",
+    return new Unit(
+      this,
+      config,
+      position.x,
+      position.y,
+      this.arenaWidth,
+      this.arenaHeight,
+      teamId,
+      instanceNumber,
     );
   }
 
@@ -675,55 +700,6 @@ class BattleBallzScene extends Phaser.Scene {
       () => {
         this.statsDragging = false;
       },
-    );
-  }
-
-  // ------------------------------------------------
-  // CREATE UNIT
-  // ------------------------------------------------
-
-  private createUnitFromSelection(
-    selection: UnitSelection,
-    teamId: number,
-    teamIndex: number,
-    teamCount: number,
-    unitIndex: number,
-    unitsInTeam: number,
-  ): Unit {
-    const baseConfig = Characters[selection.characterId];
-
-    let config: UnitConfig = baseConfig;
-
-    if (selection.movementOverride !== "default") {
-      config = {
-        ...baseConfig,
-        movementType: selection.movementOverride as MovementType,
-      };
-    }
-
-    const baseName = config.name;
-    const currentCount = this.unitCounters.get(baseName) ?? 0;
-    const instanceNumber = currentCount + 1;
-
-    this.unitCounters.set(baseName, instanceNumber);
-
-    const position = this.getSpawnPosition(
-      teamIndex,
-      teamCount,
-      unitIndex,
-      unitsInTeam,
-      config.stats.radius,
-    );
-
-    return new Unit(
-      this,
-      config,
-      position.x,
-      position.y,
-      this.arenaWidth,
-      this.arenaHeight,
-      teamId,
-      instanceNumber,
     );
   }
 

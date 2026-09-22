@@ -8,26 +8,17 @@ import type { UnitConfig } from "./UnitConfig";
 import { DamageType } from "./Damage";
 
 export class Unit {
-  // --------------------------------------------------
   // VISUAL
-  // --------------------------------------------------
-
-  public readonly sprite: Phaser.GameObjects.Arc;
+  public readonly sprite: Phaser.GameObjects.Image;
   public readonly healthCircle: Phaser.GameObjects.Graphics;
 
-  // --------------------------------------------------
   // CONFIGURATION
-  // --------------------------------------------------
-
   public readonly config: Readonly<UnitConfig>;
   public readonly name: string;
   public readonly teamId: number;
   public readonly instanceNumber: number;
 
-  // --------------------------------------------------
   // SYSTEMS
-  // --------------------------------------------------
-
   public readonly movement: Movement;
   public readonly combat: Combat;
   public readonly health: Health;
@@ -50,16 +41,14 @@ export class Unit {
 
     const stats = config.stats;
 
-    // ----------------------------------------------
     // Systems
-    // ----------------------------------------------
-
     this.health = new Health(stats.maxHealth, stats.maxShield);
     this.combat = new Combat(stats.bodyAttackDamage);
     this.physics = new Physics(
       x,
       y,
-      stats.radius,
+      stats.width,
+      stats.height,
       arenaWidth,
       arenaHeight,
       stats.mass,
@@ -68,75 +57,44 @@ export class Unit {
     this.movement = new Movement(stats.speed, config.movementType);
     this.movement.initialize(this.physics);
 
-    // ----------------------------------------------
-    // Visual
-    // ----------------------------------------------
-
-    this.sprite = scene.add.circle(x, y, stats.radius, config.color);
+    // Visual: Rectangular Icon Sprite
+    this.sprite = scene.add.image(x, y, config.icon);
+    this.sprite.setDisplaySize(stats.width, stats.height);
     this.sprite.setDepth(10);
-    this.sprite.setStrokeStyle(3, 0xffffff, 0.9);
 
-    // ----------------------------------------------
-    // Health ellipse
-    // ----------------------------------------------
-
+    // Health overlay graphic
     this.healthCircle = scene.add.graphics();
     this.healthCircle.setDepth(11);
 
     this.updateHealthCircle();
   }
 
-  // --------------------------------------------------
-  // UPDATE
-  // --------------------------------------------------
-
   update(deltaSeconds: number): void {
-    // Update combat timers.
     this.combat.update(deltaSeconds);
 
-    // Dead units do nothing.
     if (!this.isAlive()) {
       return;
     }
 
-    // Movement decides velocity.
     this.movement.update(deltaSeconds, this.physics);
-
-    // Physics moves the unit.
     this.physics.update(deltaSeconds);
-
-    // Physics keeps it inside the arena.
     this.physics.handleWallCollision();
 
-    // Move visual representation.
     this.syncSpriteToPhysics();
-
-    // Move health ellipse.
     this.updateHealthCircle();
   }
-
-  // --------------------------------------------------
-  // COLLISION
-  // --------------------------------------------------
 
   resolveCollision(other: Unit): void {
     if (!this.isAlive() || !other.isAlive()) {
       return;
     }
 
-    // Physical collision
     const collisionOccurred = this.physics.resolveCollision(other.physics);
 
-    if (!collisionOccurred) {
+    if (!collisionOccurred || this.teamId === other.teamId) {
       return;
     }
 
-    // Same-team units physically collide, but cannot damage each other
-    if (this.teamId === other.teamId) {
-      return;
-    }
-
-    // Capture attack states before damage
     const thisCanAttack = this.combat.canDealBodyDamage();
     const otherCanAttack = other.combat.canDealBodyDamage();
 
@@ -162,7 +120,6 @@ export class Unit {
       );
     }
 
-    // Apply damage
     if (thisDamage > 0) {
       other.takeDamage(thisDamage);
       this.combat.startBodyDamageCooldown();
@@ -173,10 +130,6 @@ export class Unit {
       other.combat.startBodyDamageCooldown();
     }
   }
-
-  // --------------------------------------------------
-  // DAMAGE
-  // --------------------------------------------------
 
   private takeDamage(amount: number): void {
     if (!this.isAlive()) {
@@ -191,18 +144,10 @@ export class Unit {
     }
   }
 
-  // --------------------------------------------------
-  // DEATH
-  // --------------------------------------------------
-
   private die(): void {
     this.sprite.setVisible(false);
     this.healthCircle.setVisible(false);
   }
-
-  // --------------------------------------------------
-  // STATE
-  // --------------------------------------------------
 
   public isAlive(): boolean {
     return this.health.isAlive();
@@ -228,17 +173,9 @@ export class Unit {
     return this.health.getMaxShield();
   }
 
-  // --------------------------------------------------
-  // POSITION
-  // --------------------------------------------------
-
   private syncSpriteToPhysics(): void {
     this.sprite.setPosition(this.physics.x, this.physics.y);
   }
-
-  // --------------------------------------------------
-  // HEALTH CIRCLE
-  // --------------------------------------------------
 
   private updateHealthCircle(): void {
     this.healthCircle.clear();
@@ -249,14 +186,11 @@ export class Unit {
 
     const centerX = this.physics.x;
     const centerY = this.physics.y;
+    const circleRadius = Math.max(3, this.physics.radius + 4);
 
-    const circleRadius = Math.max(3, this.physics.radius - 3);
-
-    // Background ring
     this.healthCircle.lineStyle(4, 0x111111, 0.9);
     this.drawHealthCircle(centerX, centerY, circleRadius, 0, Math.PI * 2);
 
-    // Health ring
     const healthRatio = this.getHealthRatio();
     const color = this.getHealthColor(healthRatio);
     const endAngle = -Math.PI / 2 + Math.PI * 2 * healthRatio;
@@ -320,10 +254,6 @@ export class Unit {
 
     this.healthCircle.strokePath();
   }
-
-  // --------------------------------------------------
-  // CLEANUP
-  // --------------------------------------------------
 
   public destroy(): void {
     this.sprite.destroy();
