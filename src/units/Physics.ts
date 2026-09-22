@@ -93,50 +93,64 @@ export class Physics {
     }
   }
 
-  // UNIT COLLISION
+  // RECTANGULAR UNIT COLLISION
   resolveCollision(other: Physics): boolean {
+    const halfWidthA = this.width / 2;
+    const halfHeightA = this.height / 2;
+    const halfWidthB = other.width / 2;
+    const halfHeightB = other.height / 2;
+
+    // Calculate distance between centers
     const dx = other.x - this.x;
     const dy = other.y - this.y;
 
-    const distanceSquared = dx * dx + dy * dy;
-    const minimumDistance = this.radius + other.radius;
+    // Calculate overlap on both axes
+    const overlapX = halfWidthA + halfWidthB - Math.abs(dx);
+    const overlapY = halfHeightA + halfHeightB - Math.abs(dy);
 
-    if (distanceSquared >= minimumDistance * minimumDistance) {
+    // If there's no overlap on either axis, no collision occurred
+    if (overlapX <= 0 || overlapY <= 0) {
       return false;
     }
 
-    let distance = Math.sqrt(distanceSquared);
-    let normalX: number;
-    let normalY: number;
+    let normalX = 0;
+    let normalY = 0;
+    let penetration = 0;
 
-    if (distance === 0) {
-      const randomAngle = Math.random() * Math.PI * 2;
-      normalX = Math.cos(randomAngle);
-      normalY = Math.sin(randomAngle);
-      distance = 0.0001;
+    // Resolve along the axis with the smallest overlap (shallowest penetration)
+    if (overlapX < overlapY) {
+      penetration = overlapX + 1.0; // Add 1px buffer to prevent corner clipping
+      normalX = dx < 0 ? -1 : 1;
+      normalY = 0;
     } else {
-      normalX = dx / distance;
-      normalY = dy / distance;
+      penetration = overlapY + 1.0;
+      normalX = 0;
+      normalY = dy < 0 ? -1 : 1;
     }
 
-    const overlap = minimumDistance - distance;
+    // Separate the two rectangles
+    this.x -= normalX * (penetration / 2);
+    this.y -= normalY * (penetration / 2);
 
-    this.x -= (normalX * overlap) / 2;
-    this.y -= (normalY * overlap) / 2;
+    other.x += normalX * (penetration / 2);
+    other.y += normalY * (penetration / 2);
 
-    other.x += (normalX * overlap) / 2;
-    other.y += (normalY * overlap) / 2;
+    // Keep units in arena after separation
+    this.handleWallCollision();
+    other.handleWallCollision();
 
+    // Calculate relative velocity along the collision normal
     const relativeVelocityX = other.velocityX - this.velocityX;
     const relativeVelocityY = other.velocityY - this.velocityY;
 
-    const velocityAlongNormal =
-      relativeVelocityX * normalX + relativeVelocityY * normalY;
+    const velocityAlongNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
 
+    // Do not bounce if already moving apart
     if (velocityAlongNormal > 0) {
       return false;
     }
 
+    // Impulse calculation for rectangle bounce
     const impulse = (-2 * velocityAlongNormal) / (this.mass + other.mass);
 
     this.velocityX -= impulse * other.mass * normalX;
