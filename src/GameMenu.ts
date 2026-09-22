@@ -23,11 +23,9 @@ type TeamState = {
 };
 
 const ARENAS: ArenaOption[] = [
-  { id: "tiny", label: "Tiny", width: 200, height: 200 },
-  { id: "small", label: "Small", width: 500, height: 500 },
-  { id: "medium", label: "Medium", width: 1000, height: 1000 },
-  { id: "big", label: "Big", width: 1500, height: 1500 },
-  { id: "large", label: "Large", width: 200, height: 2000 },
+  { id: "small", label: "Small", width: 200, height: 200 },
+  { id: "mid", label: "Medium", width: 500, height: 500 },
+  { id: "big", label: "Big", width: 1000, height: 1000 },
 ];
 
 const DEFAULT_SELECTION: UnitSelection = {
