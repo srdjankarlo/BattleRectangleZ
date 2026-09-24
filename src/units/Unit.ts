@@ -50,7 +50,7 @@ export class Unit {
 
     // Systems
     this.health = new Health(stats.maxHealth, stats.maxShield);
-    this.combat = new Combat(stats.bodyAttackDamage);
+    this.combat = new Combat(stats.bodyDamage);
     this.physics = new Physics(
       x,
       y,

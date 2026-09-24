@@ -174,12 +174,11 @@ class BattleRectanglezScene extends Phaser.Scene {
       .padStart(2, "0")}`;
   }
 
-  preload(): void {
-    // Preload UI icons
-    this.load.image("icon-hp", "assets/icons/HP.png");
-    this.load.image("icon-arm", "assets/icons/ARM1.png");
-    this.load.image("icon-ad", "assets/icons/AD.png");
+  // ------------------------------------------------
+  // PRELOAD UNIT ICONS
+  // ------------------------------------------------
 
+   preload(): void {
     // Preload character unit icon images
     for (const charKey of Object.keys(Characters)) {
       const charConfig = Characters[charKey as keyof typeof Characters];
@@ -493,7 +492,9 @@ class BattleRectanglezScene extends Phaser.Scene {
         "ARM",
         "MR",
         "SHLD",
+        "BD",
         "AD",
+        "AP",
         "MS",
         "MASS",
         "MOVE",
@@ -795,7 +796,7 @@ class BattleRectanglezScene extends Phaser.Scene {
     }
 
     const rows: string[][] = Array.from(
-      { length: 10 },
+      { length: 12 },
       () => [],
     );
 
@@ -819,10 +820,10 @@ class BattleRectanglezScene extends Phaser.Scene {
           ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(1)}`
           : "0.0/0.0",
       );
-      rows[6].push(stats.bodyAttackDamage.toString());
-      rows[7].push(stats.speed.toString());
-      rows[8].push(stats.mass.toString());
-      rows[9].push(unit.config.movementType.toUpperCase());
+      rows[6].push(stats.bodyDamage.toString());
+      rows[9].push(stats.speed.toString());
+      rows[10].push(stats.mass.toString());
+      rows[11].push(unit.config.movementType.toUpperCase());
     }
 
     const COLUMN_WIDTH = 18;
