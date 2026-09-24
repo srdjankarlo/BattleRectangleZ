@@ -1,4 +1,8 @@
-import { Characters, type CharacterId } from "./characters/Characters";
+import {
+  Characters,
+  CharacterDivisions,
+  type CharacterId,
+} from "./characters/Characters";
 import type {
   BattleSetup,
   GameMode,
@@ -23,9 +27,11 @@ type TeamState = {
 };
 
 const ARENAS: ArenaOption[] = [
-  { id: "small", label: "Small", width: 200, height: 200 },
-  { id: "mid", label: "Medium", width: 500, height: 500 },
-  { id: "big", label: "Big", width: 1000, height: 1000 },
+  { id: "tiny", label: "Tiny", width: 200, height: 200 },
+  { id: "small", label: "Small", width: 500, height: 500 },
+  { id: "medium", label: "Medium", width: 1000, height: 1000 },
+  { id: "big", label: "Big", width: 1500, height: 1500 },
+  { id: "large", label: "Large", width: 2000, height: 2000 },
 ];
 
 const DEFAULT_SELECTION: UnitSelection = {
@@ -47,7 +53,7 @@ export class GameMenu {
   // These values are the actual menu state.
   // Rendering HTML must never reset them.
   private mode: GameMode = "simulation";
-  private arenaId = "small";
+  private arenaId = "tiny";
   private teamCount = 2;
 
   private teams: TeamState[] = [
@@ -68,7 +74,7 @@ export class GameMenu {
     this.root = root;
     this.onStart = onStart;
 
-    this.root.classList.add("battleballz-menu-root");
+    this.root.classList.add("battlerectanglez-menu-root");
     this.render();
   }
 
@@ -88,9 +94,9 @@ export class GameMenu {
     this.root.innerHTML = `
       <main class="bb-menu">
         <section class="bb-hero">
-          <div class="bb-logo-mark">BBZ</div>
+          <div class="bb-logo-mark">BRZ</div>
           <div class="bb-kicker">BATTLE SIMULATOR</div>
-          <h1>BattleBall'z</h1>
+          <h1>BattleRectangle'z</h1>
           <p>Choose the battlefield, build the teams, and let them fight.</p>
         </section>
 
@@ -165,7 +171,7 @@ export class GameMenu {
         </section>
 
         <footer class="bb-footer">
-          <span>BATTLEBALL'Z // EARLY BUILD</span>
+          <span>BATTLERECTANGLE'Z // EARLY BUILD</span>
           <span>Simulation is currently playable</span>
         </footer>
       </main>
@@ -265,7 +271,7 @@ export class GameMenu {
           <section class="bb-team-card" data-team-id="${team.id}">
             <div class="bb-team-card-header">
               <div class="bb-team-title">
-                <span class="bb-team-number">Team${String(team.id).padStart(1)}</span>
+                <span class="bb-team-number">TEAM ${team.id}</span>
               </div>
               <span class="bb-unit-count">${team.units.length} UNIT${team.units.length === 1 ? "" : "S"}</span>
             </div>
@@ -319,10 +325,18 @@ export class GameMenu {
   }
 
   private populateUnitSelects(): void {
-    const characterOptions = Object.entries(Characters)
+    const characterOptions = CharacterDivisions
       .map(
-        ([id, config]) =>
-          `<option value="${id}">${config.name}</option>`,
+        (division) => `
+          <optgroup label="${division.name}">
+            ${division.characters
+              .map((id) => {
+                const config = Characters[id];
+                return `<option value="${id}">${config.name}</option>`;
+              })
+              .join("")}
+          </optgroup>
+        `,
       )
       .join("");
 
@@ -679,7 +693,7 @@ export class GameMenu {
 
     if (!element) {
       throw new Error(
-        `BattleBallz menu element not found: ${selector}`,
+        `BattleRectanglez menu element not found: ${selector}`,
       );
     }
 

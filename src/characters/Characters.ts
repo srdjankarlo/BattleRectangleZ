@@ -370,7 +370,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.BOUNCE,
-    icon: `${ICON_BASE}/marksman/elf.png`,
+    icon: `${ICON_BASE}/marksmen/elf.png`,
   },
   SNIPER: {
     name: "Sniper",
@@ -386,7 +386,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.BOUNCE,
-    icon: `${ICON_BASE}/marksman/sniper.png`,
+    icon: `${ICON_BASE}/marksmen/sniper.png`,
   },
   GRENADIER: {
     name: "Grenadier",
@@ -402,7 +402,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.BOUNCE,
-    icon: `${ICON_BASE}/marksman/grenadier.png`,
+    icon: `${ICON_BASE}/marksmen/grenadier.png`,
   },
   MUSKETEER: {
     name: "Musketeer",
@@ -418,7 +418,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.BOUNCE,
-    icon: `${ICON_BASE}/marksman/musketeer.png`,
+    icon: `${ICON_BASE}/marksmen/musketeer.png`,
   },
   DRONE: {
     name: "Drone",
@@ -434,7 +434,7 @@ export const Characters = {
       maxShield: 10,
     },
     movementType: MovementType.WANDER,
-    icon: `${ICON_BASE}/marksman/drone.png`,
+    icon: `${ICON_BASE}/marksmen/drone.png`,
   },
   LANCER: {
     name: "Lancer",
@@ -450,7 +450,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.BOUNCE,
-    icon: `${ICON_BASE}/marksman/lancer.png`,
+    icon: `${ICON_BASE}/marksmen/lancer.png`,
   },
 
   // ==========================================
@@ -634,7 +634,7 @@ export const Characters = {
       maxShield: 0,
     },
     movementType: MovementType.WANDER,
-    icon: `${ICON_BASE}/support/plague_doctor.png`,
+    icon: `${ICON_BASE}/support/plague_dr.png`,
   },
   CYBORG: {
     name: "Cyborg",
@@ -687,3 +687,85 @@ export const Characters = {
 } satisfies Record<string, UnitConfig>;
 
 export type CharacterId = keyof typeof Characters;
+
+/**
+ * Character groups used by the roster selector in the game menu.
+ * Keeping this separate from UnitConfig means the menu can group
+ * characters without adding UI-only data to the gameplay config.
+ */
+export const CharacterDivisions: ReadonlyArray<{
+  name: string;
+  characters: ReadonlyArray<CharacterId>;
+}> = [
+  {
+    name: "Tank",
+    characters: [
+      "CYCLOPS",
+      "BEHEMOTH",
+      "GOLEM",
+      "DREADNOUGHT",
+      "LEGIONNAIRE",
+      "HYDRA",
+      "YETI",
+    ],
+  },
+  {
+    name: "Fighter & Vanguard",
+    characters: [
+      "PHOENIX",
+      "WEREWOLF",
+      "TEMPLAR",
+      "GLADIATOR",
+      "SPARTAN",
+      "SAMURAI",
+      "VIKING",
+      "KNIGHT",
+    ],
+  },
+  {
+    name: "Assassin & Skirmisher",
+    characters: [
+      "GOBLIN",
+      "VAMPIRE",
+      "NINJA",
+      "CLOWN",
+      "COMMANDO",
+      "HACKER",
+    ],
+  },
+  {
+    name: "Marksman & Range",
+    characters: [
+      "ELF",
+      "SNIPER",
+      "GRENADIER",
+      "MUSKETEER",
+      "DRONE",
+      "LANCER",
+    ],
+  },
+  {
+    name: "Mage & Caster",
+    characters: [
+      "DRAGON",
+      "DRAKE",
+      "LICH",
+      "WITCH",
+      "WIZARD",
+      "PYROMANCER",
+      "BANSHEE",
+    ],
+  },
+  {
+    name: "Support & Utility",
+    characters: [
+      "NECROMANCER",
+      "ALCHEMYST",
+      "MEDIC",
+      "PLAGUE_DOCTOR",
+      "CYBORG",
+      "KING",
+      "QUEEN",
+    ],
+  },
+];

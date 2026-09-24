@@ -52,7 +52,7 @@ function startBattle(setup: BattleSetup): void {
 
   game.scale.refresh();
 
-  const scene = game.scene.getScene("BattleBallzScene");
+  const scene = game.scene.getScene("BattleRectanglezScene");
   scene.scene.restart();
 }
 
@@ -61,7 +61,7 @@ function restartBattle(): void {
     return;
   }
 
-  const scene = game.scene.getScene("BattleBallzScene");
+  const scene = game.scene.getScene("BattleRectanglezScene");
   scene.scene.restart();
 }
 
@@ -71,8 +71,8 @@ function restartBattle(): void {
 
 function returnToMenu(): void {
   if (game) {
-    if (game.scene.isActive("BattleBallzScene")) {
-      game.scene.stop("BattleBallzScene");
+    if (game.scene.isActive("BattleRectanglezScene")) {
+      game.scene.stop("BattleRectanglezScene");
     }
   }
 
@@ -92,12 +92,14 @@ function createPhaserConfig(): Phaser.Types.Core.GameConfig {
     height: 900,
     backgroundColor: "#0b0b0b",
     parent: "game-container",
+    powerPreference: "high-performance",
+    autoMobileTextures: true,
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
       zoom: 1,
     },
-    scene: BattleBallzScene,
+    scene: BattleRectanglezScene,
   };
 }
 
@@ -105,7 +107,7 @@ function createPhaserConfig(): Phaser.Types.Core.GameConfig {
 // GAME SCENE
 // --------------------------------------------------
 
-class BattleBallzScene extends Phaser.Scene {
+class BattleRectanglezScene extends Phaser.Scene {
   private units: Unit[] = [];
   private unitCounters = new Map<string, number>();
 
@@ -136,10 +138,13 @@ class BattleBallzScene extends Phaser.Scene {
   private battleFinished = false;
   private initialTeamCount = 0;
 
+  private lastDisplayedBattleSecond = -1;
+
   private uiUpdateTimer = 0;
+  private lastStatsText = "";
 
   constructor() {
-    super("BattleBallzScene");
+    super("BattleRectanglezScene");
   }
 
   private scrollStats(amount: number): void {
@@ -263,6 +268,9 @@ class BattleBallzScene extends Phaser.Scene {
     this.battleElapsedSeconds = 0;
     this.battleFinished = false;
     this.initialTeamCount = activeBattleSetup.teams.length;
+    this.lastDisplayedBattleSecond = -1;
+    this.uiUpdateTimer = 0;
+    this.lastStatsText = "";
 
     this.arenaWidth = activeBattleSetup.arenaWidth;
     this.arenaHeight = activeBattleSetup.arenaHeight;
@@ -426,7 +434,7 @@ class BattleBallzScene extends Phaser.Scene {
     });
 
     // PAUSE
-    const pauseButton = createButton(270, "PAUSE");
+    const pauseButton = createButton(270, "00:00 PAUSE");
     this.pauseButtonBackground = pauseButton.background;
     this.pauseButtonText = pauseButton.text;
     this.pauseButtonBackground.on("pointerdown", () => {
@@ -661,17 +669,24 @@ class BattleBallzScene extends Phaser.Scene {
     if (!this.isPaused && !this.battleFinished) {
       this.battleElapsedSeconds += deltaSeconds;
 
+      // Keep physics from making a visible speed jump after a dropped frame.
+      const simulationDeltaSeconds = Math.min(deltaSeconds, 1 / 30);
+
       for (const unit of this.units) {
-        unit.update(deltaSeconds);
+        unit.update(simulationDeltaSeconds);
       }
 
-      for (let i = 0; i < this.units.length; i++) {
-        for (let j = i + 1; j < this.units.length; j++) {
-          this.units[i].resolveCollision(this.units[j]);
-        }
-      }
+      this.resolveUnitCollisions();
 
       this.removeDeadUnits();
+
+      const wholeSecond = Math.floor(this.battleElapsedSeconds);
+      if (wholeSecond !== this.lastDisplayedBattleSecond) {
+        this.lastDisplayedBattleSecond = wholeSecond;
+        this.pauseButtonText.setText(
+          `${this.formatDuration(this.battleElapsedSeconds)} PAUSE`,
+        );
+      }
 
       // Throttle UI update to 10 FPS (100ms interval)
       this.uiUpdateTimer += delta;
@@ -683,21 +698,120 @@ class BattleBallzScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------
+  // UNIT COLLISIONS
+  // ------------------------------------------------
+
+  private resolveUnitCollisions(): void {
+    const unitCount = this.units.length;
+
+    // For small battles, the straightforward pair loop is faster.
+    if (unitCount <= 32) {
+      for (let i = 0; i < unitCount; i++) {
+        for (let j = i + 1; j < unitCount; j++) {
+          this.units[i].resolveCollision(this.units[j]);
+        }
+      }
+      return;
+    }
+
+    // For larger battles, use a uniform spatial grid so distant units
+    // are never compared with each other.
+    let cellSize = 1;
+
+    for (const unit of this.units) {
+      cellSize = Math.max(
+        cellSize,
+        unit.physics.width,
+        unit.physics.height,
+      );
+    }
+
+    const grid = new Map<string, number[]>();
+
+    const addToCell = (
+      cellX: number,
+      cellY: number,
+      unitIndex: number,
+    ): void => {
+      const key = `${cellX},${cellY}`;
+      const cell = grid.get(key);
+
+      if (cell) {
+        cell.push(unitIndex);
+      } else {
+        grid.set(key, [unitIndex]);
+      }
+    };
+
+    for (let i = 0; i < unitCount; i++) {
+      const physics = this.units[i].physics;
+      const halfWidth = physics.width / 2;
+      const halfHeight = physics.height / 2;
+
+      const minCellX = Math.floor((physics.x - halfWidth) / cellSize);
+      const maxCellX = Math.floor((physics.x + halfWidth) / cellSize);
+      const minCellY = Math.floor((physics.y - halfHeight) / cellSize);
+      const maxCellY = Math.floor((physics.y + halfHeight) / cellSize);
+
+      for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+        for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
+          addToCell(cellX, cellY, i);
+        }
+      }
+    }
+
+    const checkedPairs = new Set<string>();
+
+    for (const cell of grid.values()) {
+      for (let i = 0; i < cell.length; i++) {
+        for (let j = i + 1; j < cell.length; j++) {
+          const a = cell[i];
+          const b = cell[j];
+          const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+
+          if (checkedPairs.has(key)) {
+            continue;
+          }
+
+          checkedPairs.add(key);
+          this.units[a].resolveCollision(this.units[b]);
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------
   // STATUS
   // ------------------------------------------------
 
   private updateStatus(): void {
-    const rows: string[][] = Array.from({ length: 10 }, () => []);
+    const nameCounts = new Map<string, number>();
 
     for (const unit of this.units) {
-      const sameNameCount = this.units.filter((u) => u.name === unit.name).length;
+      nameCounts.set(
+        unit.name,
+        (nameCounts.get(unit.name) ?? 0) + 1,
+      );
+    }
+
+    const rows: string[][] = Array.from(
+      { length: 10 },
+      () => [],
+    );
+
+    for (const unit of this.units) {
       const displayName =
-        sameNameCount > 1 ? `${unit.name} #${unit.instanceNumber}` : unit.name;
+        (nameCounts.get(unit.name) ?? 0) > 1
+          ? `${unit.name} #${unit.instanceNumber}`
+          : unit.name;
+
       const stats = unit.config.stats;
 
       rows[0].push(unit.teamId.toString());
       rows[1].push(displayName);
-      rows[2].push(`${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`);
+      rows[2].push(
+        `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(1)}`,
+      );
       rows[3].push(stats.armor.toString());
       rows[4].push(stats.magicResistance.toString());
       rows[5].push(
@@ -713,13 +827,22 @@ class BattleBallzScene extends Phaser.Scene {
 
     const COLUMN_WIDTH = 18;
 
-    const formattedLines = rows.map((rowValues) => {
-      return rowValues
-        .map((val) => val.slice(0, COLUMN_WIDTH).padEnd(COLUMN_WIDTH, " "))
-        .join("");
-    });
+    const formattedText = rows
+      .map((rowValues) =>
+        rowValues
+          .map((value) =>
+            value
+              .slice(0, COLUMN_WIDTH)
+              .padEnd(COLUMN_WIDTH, " "),
+          )
+          .join(""),
+      )
+      .join("\n");
 
-    this.statsValuesText.setText(formattedLines.join("\n"));
+    if (formattedText !== this.lastStatsText) {
+      this.lastStatsText = formattedText;
+      this.statsValuesText.setText(formattedText);
+    }
   }
 
   // ------------------------------------------------
@@ -900,12 +1023,15 @@ class BattleBallzScene extends Phaser.Scene {
   private togglePause(): void {
     this.isPaused = !this.isPaused;
 
+    const timer =
+      this.formatDuration(this.battleElapsedSeconds);
+
     if (this.isPaused) {
       this.pauseStatusText.setText("PAUSED — tap Resume");
-      this.pauseButtonText.setText("RESUME");
+      this.pauseButtonText.setText(`${timer} RESUME`);
     } else {
       this.pauseStatusText.setText("RUNNING — tap Pause");
-      this.pauseButtonText.setText("PAUSE");
+      this.pauseButtonText.setText(`${timer} PAUSE`);
     }
   }
 }

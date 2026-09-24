@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.battleballz.myapp',
-  appName: "BattleBall'Z",
+  appId: 'com.battlerectanglez.myapp',
+  appName: "BattleRectangle'Z",
   webDir: 'dist'
 };
 

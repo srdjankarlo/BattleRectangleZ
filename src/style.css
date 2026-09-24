@@ -75,7 +75,7 @@ select:focus-visible {
   white-space: pre;
 }
 
-.battleballz-menu-root {
+.battlerectanglez-menu-root {
   min-height: 100vh;
   padding: 34px 18px 56px;
 }
@@ -491,7 +491,7 @@ select:focus-visible {
 }
 
 @media (max-width: 680px) {
-  .battleballz-menu-root {
+  .battlerectanglez-menu-root {
     padding: 14px 10px 28px;
   }
 

@@ -7,6 +7,8 @@ export class Physics {
 
   public readonly width: number;
   public readonly height: number;
+  private readonly halfWidth: number;
+  private readonly halfHeight: number;
 
   private readonly arenaWidth: number;
   private readonly arenaHeight: number;
@@ -27,6 +29,8 @@ export class Physics {
 
     this.width = width;
     this.height = height;
+    this.halfWidth = width / 2;
+    this.halfHeight = height / 2;
 
     this.arenaWidth = arenaWidth;
     this.arenaHeight = arenaHeight;
@@ -65,8 +69,8 @@ export class Physics {
 
   // WALL COLLISION
   handleWallCollision(): void {
-    const halfWidth = this.width / 2;
-    const halfHeight = this.height / 2;
+    const halfWidth = this.halfWidth;
+    const halfHeight = this.halfHeight;
 
     // LEFT
     if (this.x - halfWidth <= 0) {
@@ -101,10 +105,10 @@ export class Physics {
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    const halfWidthA = this.width / 2;
-    const halfHeightA = this.height / 2;
-    const halfWidthB = other.width / 2;
-    const halfHeightB = other.height / 2;
+    const halfWidthA = this.halfWidth;
+    const halfHeightA = this.halfHeight;
+    const halfWidthB = other.halfWidth;
+    const halfHeightB = other.halfHeight;
 
     const maxAllowedX = halfWidthA + halfWidthB;
     const maxAllowedY = halfHeightA + halfHeightB;
