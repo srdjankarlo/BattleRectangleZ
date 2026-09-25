@@ -15,6 +15,12 @@ export class Unit {
   public readonly healthBarBg: Phaser.GameObjects.Rectangle;
   public readonly healthBarFill: Phaser.GameObjects.Rectangle;
 
+  private readonly healthBarWidth: number;
+  private readonly healthBarOffsetY: number;
+
+  private lastHealthRatio = -1;
+  private lastHealthBarColor = -1;
+
   // --------------------------------------------------
   // CONFIGURATION
   // --------------------------------------------------
@@ -48,9 +54,15 @@ export class Unit {
 
     const stats = config.stats;
 
-    // Systems
-    this.health = new Health(stats.maxHealth, stats.maxShield);
-    this.combat = new Combat(stats.bodyDamage);
+    this.health = new Health(
+      stats.maxHealth,
+      stats.maxShield,
+    );
+
+    this.combat = new Combat(
+      stats.bodyDamage,
+    );
+
     this.physics = new Physics(
       x,
       y,
@@ -61,39 +73,65 @@ export class Unit {
       stats.mass,
     );
 
-    this.movement = new Movement(stats.speed, config.movementType);
-    this.movement.initialize(this.physics);
+    this.movement = new Movement(
+      stats.speed,
+      config.movementType,
+    );
 
-    // Unit Sprite
-    this.sprite = scene.add.image(x, y, config.icon);
-    this.sprite.setDisplaySize(stats.width, stats.height);
+    this.movement.initialize(
+      this.physics,
+    );
+
+    // Unit sprite.
+    this.sprite = scene.add.image(
+      x,
+      y,
+      config.icon,
+    );
+
+    this.sprite.setDisplaySize(
+      stats.width,
+      stats.height,
+    );
+
     this.sprite.setDepth(10);
 
-    // Health Bar - Background (Dark Gray Frame)
-    const barWidth = Math.max(30, stats.width);
-    const barHeight = 6;
-    const barOffsetY = stats.height / 2 + 8;
+    // Health bar geometry never changes during a battle,
+    // so cache the values rather than recalculating them every frame.
+    this.healthBarWidth = Math.max(
+      30,
+      stats.width,
+    );
+
+    this.healthBarOffsetY =
+      stats.height / 2 + 8;
 
     this.healthBarBg = scene.add.rectangle(
       x,
-      y - barOffsetY,
-      barWidth,
-      barHeight,
+      y - this.healthBarOffsetY,
+      this.healthBarWidth,
+      6,
       0x111111,
     );
-    this.healthBarBg.setDepth(11);
-    this.healthBarBg.setStrokeStyle(1, 0x000000, 0.8);
 
-    // Health Bar - Fill (Colored Bar)
+    this.healthBarBg.setDepth(11);
+    this.healthBarBg.setStrokeStyle(
+      1,
+      0x000000,
+      0.8,
+    );
+
     this.healthBarFill = scene.add.rectangle(
-      x - barWidth / 2, // Left origin for scaleX shrinking
-      y - barOffsetY,
-      barWidth,
-      barHeight - 2,
+      x - this.healthBarWidth / 2,
+      y - this.healthBarOffsetY,
+      this.healthBarWidth,
+      4,
       0x22c55e,
     );
-    this.healthBarFill.setOrigin(0, 0.5); // Anchor to left edge
-    this.healthBarFill.setDepth(12);
+
+    this.healthBarFill
+      .setOrigin(0, 0.5)
+      .setDepth(12);
 
     this.updateHealthBar();
   }
@@ -101,6 +139,7 @@ export class Unit {
   // --------------------------------------------------
   // UPDATE
   // --------------------------------------------------
+
   update(deltaSeconds: number): void {
     this.combat.update(deltaSeconds);
 
@@ -108,7 +147,11 @@ export class Unit {
       return;
     }
 
-    this.movement.update(deltaSeconds, this.physics);
+    this.movement.update(
+      deltaSeconds,
+      this.physics,
+    );
+
     this.physics.update(deltaSeconds);
     this.physics.handleWallCollision();
 
@@ -118,80 +161,145 @@ export class Unit {
   // --------------------------------------------------
   // POSITION SYNCHRONIZATION
   // --------------------------------------------------
+
   private syncSpriteToPhysics(): void {
     const x = this.physics.x;
     const y = this.physics.y;
-    const barOffsetY = this.physics.height / 2 + 8;
-    const barWidth = Math.max(30, this.physics.width);
 
-    this.sprite.setPosition(x, y);
-    this.healthBarBg.setPosition(x, y - barOffsetY);
-    this.healthBarFill.setPosition(x - barWidth / 2, y - barOffsetY);
+    this.sprite.x = x;
+    this.sprite.y = y;
+
+    this.healthBarBg.x = x;
+    this.healthBarBg.y =
+      y - this.healthBarOffsetY;
+
+    this.healthBarFill.x =
+      x - this.healthBarWidth / 2;
+    this.healthBarFill.y =
+      y - this.healthBarOffsetY;
   }
 
   // --------------------------------------------------
-  // HEALTH BAR UPDATE (FAST SCALE ADAPTATION)
+  // HEALTH BAR
   // --------------------------------------------------
+
   private updateHealthBar(): void {
     if (!this.isAlive()) {
       return;
     }
 
-    const healthRatio = this.getHealthRatio();
+    const healthRatio = Phaser.Math.Clamp(
+      this.getHealthRatio(),
+      0,
+      1,
+    );
 
-    // Scale fill bar horizontally from left origin
-    this.healthBarFill.setScale(Phaser.Math.Clamp(healthRatio, 0, 1), 1);
+    if (healthRatio !== this.lastHealthRatio) {
+      this.lastHealthRatio = healthRatio;
+      this.healthBarFill.setScale(
+        healthRatio,
+        1,
+      );
+    }
 
-    // Dynamic color change based on health ratio
-    const color = this.getHealthColor(healthRatio);
-    this.healthBarFill.setFillStyle(color);
+    const color =
+      this.getHealthColor(healthRatio);
+
+    if (color !== this.lastHealthBarColor) {
+      this.lastHealthBarColor = color;
+      this.healthBarFill.setFillStyle(
+        color,
+      );
+    }
   }
 
-  private getHealthColor(healthRatio: number): number {
-    if (healthRatio > 0.75) return 0x22c55e; // Green
-    if (healthRatio > 0.5) return 0x84cc16;  // Lime
-    if (healthRatio > 0.25) return 0xfacc15; // Yellow
-    if (healthRatio > 0.1) return 0xf97316;  // Orange
-    return 0xef4444;                          // Red
+  private getHealthColor(
+    healthRatio: number,
+  ): number {
+    if (healthRatio > 0.75) {
+      return 0x22c55e;
+    }
+
+    if (healthRatio > 0.5) {
+      return 0x84cc16;
+    }
+
+    if (healthRatio > 0.25) {
+      return 0xfacc15;
+    }
+
+    if (healthRatio > 0.1) {
+      return 0xf97316;
+    }
+
+    return 0xef4444;
   }
 
   // --------------------------------------------------
   // DAMAGE & DEATH
   // --------------------------------------------------
-  public resolveCollision(other: Unit): void {
-    if (!this.isAlive() || !other.isAlive()) {
+
+  public resolveCollision(
+    other: Unit,
+  ): void {
+    if (
+      !this.isAlive() ||
+      !other.isAlive()
+    ) {
       return;
     }
 
-    const collisionOccurred = this.physics.resolveCollision(other.physics);
+    const collisionOccurred =
+      this.physics.resolveCollision(
+        other.physics,
+      );
 
-    if (!collisionOccurred || this.teamId === other.teamId) {
+    // Same-team units still collide physically,
+    // but do not deal body damage to each other.
+    if (
+      !collisionOccurred ||
+      this.teamId === other.teamId
+    ) {
       return;
     }
 
-    const thisCanAttack = this.combat.canDealBodyDamage();
-    const otherCanAttack = other.combat.canDealBodyDamage();
+    const thisCanAttack =
+      this.combat.canDealBodyDamage();
 
-    const thisWasAlive = this.isAlive();
-    const otherWasAlive = other.isAlive();
+    const otherCanAttack =
+      other.combat.canDealBodyDamage();
+
+    const thisWasAlive =
+      this.isAlive();
+
+    const otherWasAlive =
+      other.isAlive();
 
     let thisDamage = 0;
     let otherDamage = 0;
 
-    if (thisCanAttack && otherWasAlive) {
-      thisDamage = this.combat.calculateDamage(
-        this.combat.bodyAttackDamage,
-        DamageType.PHYSICAL,
-        other.config.stats,
-      );
+    if (
+      thisCanAttack &&
+      otherWasAlive
+    ) {
+      thisDamage =
+        this.combat.calculateDamage(
+          this.combat.bodyAttackDamage,
+          DamageType.PHYSICAL,
+          other.config.stats,
+        );
     }
 
-    if (otherCanAttack && thisWasAlive) {
-      otherDamage = other.combat.calculateDamage(
-        other.combat.bodyAttackDamage,
-        DamageType.PHYSICAL,
-        this.config.stats,
-      );
+    if (
+      otherCanAttack &&
+      thisWasAlive
+    ) {
+      otherDamage =
+        other.combat.calculateDamage(
+          other.combat.bodyAttackDamage,
+          DamageType.PHYSICAL,
+          this.config.stats,
+        );
     }
 
     if (thisDamage > 0) {
@@ -205,13 +313,22 @@ export class Unit {
     }
   }
 
-  private takeDamage(amount: number): void {
+  private takeDamage(
+    amount: number,
+  ): void {
     if (!this.isAlive()) {
       return;
     }
 
-    this.health.takeDamage(amount);
-    this.updateHealthBar(); // Only updates bar visuals when damage is taken
+    const result = this.health.takeDamage(
+      amount,
+    );
+
+    // The health bar represents HP, not shield. Do not update it
+    // when damage is fully absorbed by the shield.
+    if (result.healthDamage > 0) {
+      this.updateHealthBar();
+    }
 
     if (!this.isAlive()) {
       this.die();
@@ -223,6 +340,10 @@ export class Unit {
     this.healthBarBg.setVisible(false);
     this.healthBarFill.setVisible(false);
   }
+
+  // --------------------------------------------------
+  // STATE ACCESSORS
+  // --------------------------------------------------
 
   public isAlive(): boolean {
     return this.health.isAlive();

@@ -9,6 +9,7 @@ export class Physics {
   public readonly height: number;
   private readonly halfWidth: number;
   private readonly halfHeight: number;
+  private readonly boundingRadius: number;
 
   private readonly arenaWidth: number;
   private readonly arenaHeight: number;
@@ -24,6 +25,12 @@ export class Physics {
     arenaHeight: number,
     mass = 1,
   ) {
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        "Physics width and height must be greater than 0.",
+      );
+    }
+
     this.x = x;
     this.y = y;
 
@@ -31,24 +38,31 @@ export class Physics {
     this.height = height;
     this.halfWidth = width / 2;
     this.halfHeight = height / 2;
+    this.boundingRadius = Math.max(width, height) / 2;
 
     this.arenaWidth = arenaWidth;
     this.arenaHeight = arenaHeight;
 
     if (mass <= 0) {
-      throw new Error("Mass must be greater than 0.");
+      throw new Error(
+        "Mass must be greater than 0.",
+      );
     }
 
     this.mass = mass;
   }
 
-  // Bounding radius for spatial checks
+  // Bounding radius is cached because unit dimensions do not change.
   public get radius(): number {
-    return Math.max(this.width, this.height) / 2;
+    return this.boundingRadius;
   }
 
   // VELOCITY
-  setVelocity(velocityX: number, velocityY: number): void {
+
+  setVelocity(
+    velocityX: number,
+    velocityY: number,
+  ): void {
     this.velocityX = velocityX;
     this.velocityY = velocityY;
   }
@@ -62,114 +76,283 @@ export class Physics {
   }
 
   // MOVEMENT
+
   update(deltaSeconds: number): void {
-    this.x += this.velocityX * deltaSeconds;
-    this.y += this.velocityY * deltaSeconds;
+    this.x +=
+      this.velocityX * deltaSeconds;
+
+    this.y +=
+      this.velocityY * deltaSeconds;
   }
 
   // WALL COLLISION
-  handleWallCollision(): void {
-    const halfWidth = this.halfWidth;
-    const halfHeight = this.halfHeight;
 
+  handleWallCollision(): void {
     // LEFT
-    if (this.x - halfWidth <= 0) {
-      this.x = halfWidth;
+    if (this.x - this.halfWidth <= 0) {
+      this.x = this.halfWidth;
       this.velocityX *= -1;
     }
 
     // RIGHT
-    if (this.x + halfWidth >= this.arenaWidth) {
-      this.x = this.arenaWidth - halfWidth;
+    if (
+      this.x + this.halfWidth >=
+      this.arenaWidth
+    ) {
+      this.x =
+        this.arenaWidth -
+        this.halfWidth;
       this.velocityX *= -1;
     }
 
     // TOP
-    if (this.y - halfHeight <= 0) {
-      this.y = halfHeight;
+    if (this.y - this.halfHeight <= 0) {
+      this.y = this.halfHeight;
       this.velocityY *= -1;
     }
 
     // BOTTOM
-    if (this.y + halfHeight >= this.arenaHeight) {
-      this.y = this.arenaHeight - halfHeight;
+    if (
+      this.y + this.halfHeight >=
+      this.arenaHeight
+    ) {
+      this.y =
+        this.arenaHeight -
+        this.halfHeight;
       this.velocityY *= -1;
     }
   }
 
-  // RECTANGULAR UNIT COLLISION WITH FAST GAURD CHECK
-  resolveCollision(other: Physics): boolean {
+  // RECTANGLE COLLISION
+
+  resolveCollision(
+    other: Physics,
+  ): boolean {
     const dx = other.x - this.x;
     const dy = other.y - this.y;
 
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    const halfWidthA = this.halfWidth;
-    const halfHeightA = this.halfHeight;
-    const halfWidthB = other.halfWidth;
-    const halfHeightB = other.halfHeight;
+    const maxAllowedX =
+      this.halfWidth +
+      other.halfWidth;
 
-    const maxAllowedX = halfWidthA + halfWidthB;
-    const maxAllowedY = halfHeightA + halfHeightB;
+    const maxAllowedY =
+      this.halfHeight +
+      other.halfHeight;
 
-    // --------------------------------------------------
-    // FAST GAURD CHECK (Fails fast if clearly not colliding)
-    // --------------------------------------------------
-    if (absDx >= maxAllowedX || absDy >= maxAllowedY) {
+    // Fast guard: most pairs do not collide.
+    if (
+      absDx >= maxAllowedX ||
+      absDy >= maxAllowedY
+    ) {
       return false;
     }
 
-    // --------------------------------------------------
-    // FULL RECTANGLE INTERSECTION MATH
-    // --------------------------------------------------
-    const overlapX = maxAllowedX - absDx;
-    const overlapY = maxAllowedY - absDy;
+    const overlapX =
+      maxAllowedX - absDx;
+
+    const overlapY =
+      maxAllowedY - absDy;
 
     let normalX = 0;
     let normalY = 0;
-    let penetration = 0;
+    let penetration: number;
 
-    if (overlapX < overlapY) {
-      penetration = overlapX + 1.0;
+    const useHorizontalSeparation =
+      overlapX < overlapY;
+
+    if (useHorizontalSeparation) {
+      penetration = overlapX + 1;
       normalX = dx < 0 ? -1 : 1;
-      normalY = 0;
     } else {
-      penetration = overlapY + 1.0;
-      normalX = 0;
+      penetration = overlapY + 1;
       normalY = dy < 0 ? -1 : 1;
     }
 
-    // Separate rectangles
-    this.x -= normalX * (penetration / 2);
-    this.y -= normalY * (penetration / 2);
+    // Separate the units while respecting arena walls.
+    //
+    // A normal 50/50 split is not enough at a wall: if one unit is already
+    // touching that wall, moving it outward gets clamped back immediately,
+    // recreating the overlap. Give the free unit the remaining separation
+    // distance instead.
+    let separated = this.separateWithArenaBounds(
+      other,
+      normalX,
+      normalY,
+      penetration,
+    );
 
-    other.x += normalX * (penetration / 2);
-    other.y += normalY * (penetration / 2);
+    // If the preferred separation axis is completely blocked by the arena
+    // boundary, try the other axis. This handles units trapped together in a
+    // corner or pressed against the same side wall.
+    if (!separated) {
+      if (useHorizontalSeparation) {
+        penetration = overlapY + 1;
+        normalX = 0;
+        normalY = dy < 0 ? -1 : 1;
+      } else {
+        penetration = overlapX + 1;
+        normalX = dx < 0 ? -1 : 1;
+        normalY = 0;
+      }
 
-    // Keep units in arena after separation
-    this.handleWallCollision();
-    other.handleWallCollision();
+      separated = this.separateWithArenaBounds(
+        other,
+        normalX,
+        normalY,
+        penetration,
+      );
+    }
 
-    // Calculate relative velocity along collision normal
-    const relativeVelocityX = other.velocityX - this.velocityX;
-    const relativeVelocityY = other.velocityY - this.velocityY;
+    if (!separated) {
+      // This can only happen when the units are too large for the arena to
+      // provide enough room for a non-overlapping configuration.
+      return false;
+    }
 
-    const velocityAlongNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
+    const relativeVelocityX =
+      other.velocityX -
+      this.velocityX;
 
+    const relativeVelocityY =
+      other.velocityY -
+      this.velocityY;
+
+    const velocityAlongNormal =
+      relativeVelocityX * normalX +
+      relativeVelocityY * normalY;
+
+    // Already separating.
     if (velocityAlongNormal > 0) {
       return false;
     }
 
-    // Impulse response
-    const impulse = (-2 * velocityAlongNormal) / (this.mass + other.mass);
+    const impulse =
+      (-2 * velocityAlongNormal) /
+      (this.mass + other.mass);
 
-    this.velocityX -= impulse * other.mass * normalX;
-    this.velocityY -= impulse * other.mass * normalY;
+    this.velocityX -=
+      impulse * other.mass * normalX;
+    this.velocityY -=
+      impulse * other.mass * normalY;
 
-    other.velocityX += impulse * this.mass * normalX;
-    other.velocityY += impulse * this.mass * normalY;
+    other.velocityX +=
+      impulse * this.mass * normalX;
+    other.velocityY +=
+      impulse * this.mass * normalY;
 
     return true;
+  }
+
+  private separateWithArenaBounds(
+    other: Physics,
+    normalX: number,
+    normalY: number,
+    penetration: number,
+  ): boolean {
+    const movePositiveX = normalX > 0;
+    const movePositiveY = normalY > 0;
+
+    if (normalX !== 0) {
+      const thisAvailable = movePositiveX
+        ? this.x - this.halfWidth
+        : this.arenaWidth - this.halfWidth - this.x;
+
+      const otherAvailable = movePositiveX
+        ? this.arenaWidth - other.halfWidth - other.x
+        : other.x - other.halfWidth;
+
+      const totalAvailable =
+        Math.max(0, thisAvailable) +
+        Math.max(0, otherAvailable);
+
+      if (totalAvailable + 1e-6 < penetration) {
+        return false;
+      }
+
+      let thisMove = Math.min(
+        penetration / 2,
+        Math.max(0, thisAvailable),
+      );
+
+      let otherMove = penetration - thisMove;
+
+      if (otherMove > Math.max(0, otherAvailable)) {
+        otherMove = Math.max(0, otherAvailable);
+        thisMove = penetration - otherMove;
+      }
+
+      this.x += movePositiveX
+        ? -thisMove
+        : thisMove;
+
+      other.x += movePositiveX
+        ? otherMove
+        : -otherMove;
+    } else {
+      const thisAvailable = movePositiveY
+        ? this.y - this.halfHeight
+        : this.arenaHeight - this.halfHeight - this.y;
+
+      const otherAvailable = movePositiveY
+        ? this.arenaHeight - other.halfHeight - other.y
+        : other.y - other.halfHeight;
+
+      const totalAvailable =
+        Math.max(0, thisAvailable) +
+        Math.max(0, otherAvailable);
+
+      if (totalAvailable + 1e-6 < penetration) {
+        return false;
+      }
+
+      let thisMove = Math.min(
+        penetration / 2,
+        Math.max(0, thisAvailable),
+      );
+
+      let otherMove = penetration - thisMove;
+
+      if (otherMove > Math.max(0, otherAvailable)) {
+        otherMove = Math.max(0, otherAvailable);
+        thisMove = penetration - otherMove;
+      }
+
+      this.y += movePositiveY
+        ? -thisMove
+        : thisMove;
+
+      other.y += movePositiveY
+        ? otherMove
+        : -otherMove;
+    }
+
+    // The movement above is calculated from the remaining free space, so the
+    // units should already be inside the arena. This final clamp protects
+    // against tiny floating-point errors without changing their velocities.
+    this.constrainPositionToArena();
+    other.constrainPositionToArena();
+
+    return true;
+  }
+
+  private constrainPositionToArena(): void {
+    this.x = Math.max(
+      this.halfWidth,
+      Math.min(
+        this.arenaWidth - this.halfWidth,
+        this.x,
+      ),
+    );
+
+    this.y = Math.max(
+      this.halfHeight,
+      Math.min(
+        this.arenaHeight - this.halfHeight,
+        this.y,
+      ),
+    );
   }
 }

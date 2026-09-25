@@ -9,6 +9,14 @@ export const MovementType = {
 export type MovementType =
   (typeof MovementType)[keyof typeof MovementType];
 
+// Precomputed constants avoid repeating degree/radian conversion
+// work for every moving unit on every frame.
+const MAX_WANDER_TURN_PER_SECOND =
+  Math.PI * 2;
+
+const MAX_JITTER =
+  (25 * Math.PI) / 180;
+
 export class Movement {
   private readonly speed: number;
 
@@ -30,18 +38,6 @@ export class Movement {
     this.movementType = movementType;
 
     // Choose a random starting direction.
-    // Math.PI * 2 represents a full circle (2*PI = 360 degrees).
-    //              270°
-    //               ↑
-    //               |
-    // 180°  ←────── ● ──────→  0°
-    //               |
-    //               ↓
-    //              90°
-    // 0°       → right → 0
-    // 90°      → down → PI/2
-    // 180°     → left → PI
-    // 270°     → up → 3*PI/2
     this.direction =
       Math.random() * Math.PI * 2;
   }
@@ -56,9 +52,7 @@ export class Movement {
   ): void {
     switch (this.movementType) {
       case MovementType.BOUNCE:
-        this.updateBounce(
-          physics,
-        );
+        this.updateBounce();
         break;
 
       case MovementType.WANDER:
@@ -69,9 +63,7 @@ export class Movement {
         break;
 
       case MovementType.JITTER:
-        this.updateJitter(
-          physics,
-        );
+        this.updateJitter(physics);
         break;
     }
   }
@@ -80,14 +72,10 @@ export class Movement {
   // BOUNCE
   // --------------------------------------------------
 
-  private updateBounce(
-    _physics: Physics,
-  ): void {
+  private updateBounce(): void {
     /*
-     * BOUNCE doesn't change its direction by itself.
-     *
-     * Physics changes the velocity when the unit
-     * collides with a wall.
+     * BOUNCE does not change direction by itself.
+     * Physics changes the velocity when the unit hits a wall.
      */
   }
 
@@ -99,23 +87,14 @@ export class Movement {
     deltaSeconds: number,
     physics: Physics,
   ): void {
-    /*
-     * Gradually change direction.
-     */
-    const maximumTurnPerSecond =
-      this.degreesToRadians(360);
-
     const randomTurn =
       (Math.random() * 2 - 1) *
-      maximumTurnPerSecond *
+      MAX_WANDER_TURN_PER_SECOND *
       deltaSeconds;
 
     this.direction =
-      this.getDirectionFromPhysics(
-        physics,
-      );
-
-    this.direction += randomTurn;
+      this.getDirectionFromPhysics(physics) +
+      randomTurn;
 
     this.updateVelocity(physics);
   }
@@ -127,22 +106,13 @@ export class Movement {
   private updateJitter(
     physics: Physics,
   ): void {
-    /*
-     * Change direction every frame.
-     */
-    const maximumJitter =
-      this.degreesToRadians(25);
-
     const randomJitter =
       (Math.random() * 2 - 1) *
-      maximumJitter;
+      MAX_JITTER;
 
     this.direction =
-      this.getDirectionFromPhysics(
-        physics,
-      );
-
-    this.direction += randomJitter;
+      this.getDirectionFromPhysics(physics) +
+      randomJitter;
 
     this.updateVelocity(physics);
   }
@@ -154,17 +124,9 @@ export class Movement {
   private updateVelocity(
     physics: Physics,
   ): void {
-    const velocityX =
-      Math.cos(this.direction) *
-      this.speed;
-
-    const velocityY =
-      Math.sin(this.direction) *
-      this.speed;
-
     physics.setVelocity(
-      velocityX,
-      velocityY,
+      Math.cos(this.direction) * this.speed,
+      Math.sin(this.direction) * this.speed,
     );
   }
 
@@ -174,16 +136,6 @@ export class Movement {
     return Math.atan2(
       physics.getVelocityY(),
       physics.getVelocityX(),
-    );
-  }
-
-  private degreesToRadians(
-    degrees: number,
-  ): number {
-    return (
-      degrees *
-      Math.PI /
-      180
     );
   }
 }

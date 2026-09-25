@@ -28,14 +28,23 @@ type TeamState = {
 
 const ARENAS: ArenaOption[] = [
   { id: "tiny", label: "Tiny", width: 200, height: 200 },
-  { id: "small", label: "Small", width: 500, height: 500 },
-  { id: "medium", label: "Medium", width: 1000, height: 1000 },
-  { id: "big", label: "Big", width: 1500, height: 1500 },
-  { id: "large", label: "Large", width: 2000, height: 2000 },
+  { id: "small", label: "Small", width: 300, height: 300 },
+  { id: "medium", label: "Medium", width: 500, height: 500 },
+  { id: "big", label: "Big", width: 1000, height: 1000 },
 ];
 
 const DEFAULT_SELECTION: UnitSelection = {
-  characterId: "KNIGHT" as CharacterId,
+  characterId: "HACKER" as CharacterId,
+  movementOverride: "default",
+};
+
+const DEFAULT_SELECTION1: UnitSelection = {
+  characterId: "TEMPLAR" as CharacterId,
+  movementOverride: "default",
+};
+
+const DEFAULT_SELECTION2: UnitSelection = {
+  characterId: "SPARTAN" as CharacterId,
   movementOverride: "default",
 };
 
@@ -59,11 +68,11 @@ export class GameMenu {
   private teams: TeamState[] = [
     {
       id: 1,
-      units: [this.cloneSelection(DEFAULT_SELECTION)],
+      units: [this.cloneSelection(DEFAULT_SELECTION1)],
     },
     {
       id: 2,
-      units: [this.cloneSelection(DEFAULT_SELECTION)],
+      units: [this.cloneSelection(DEFAULT_SELECTION2)],
     },
   ];
 
@@ -581,10 +590,22 @@ export class GameMenu {
     while (this.teams.length < newCount) {
       const teamId = this.teams.length + 1;
 
-      this.teams.push({
-        id: teamId,
-        units: [this.cloneSelection(DEFAULT_SELECTION)],
-      });
+      if (teamId === 1) {
+        this.teams.push({
+          id: teamId,
+          units: [this.cloneSelection(DEFAULT_SELECTION1)],
+        });
+      } else if (teamId === 2) {
+        this.teams.push({
+          id: teamId,
+          units: [this.cloneSelection(DEFAULT_SELECTION2)],
+        });
+      } else {
+        this.teams.push({
+          id: teamId,
+          units: [this.cloneSelection(DEFAULT_SELECTION)],
+        });
+      }
     }
 
     if (this.teams.length > newCount) {
