@@ -8,23 +8,27 @@ export class Health {
   private readonly maxHealth: number;
   private currentHealth: number;
 
+  // HP restored every second. A value of 0 means no regeneration.
+  private readonly healthRegeneration: number;
+
   private readonly maxShield: number;
   private currentShield: number;
 
   constructor(
     maxHealth: number,
-    maxShield: number,
+    maxShield = 0,
+    healthRegeneration = 0,
   ) {
     if (maxHealth <= 0) {
-      throw new Error(
-        "Max health must be greater than 0.",
-      );
+      throw new Error("Max health must be greater than 0.",);
     }
 
     if (maxShield < 0) {
-      throw new Error(
-        "Max shield cannot be negative.",
-      );
+      throw new Error("Max shield cannot be negative.",);
+    }
+
+    if (healthRegeneration < 0) {
+      throw new Error("Health regeneration cannot be negative.",);
     }
 
     this.maxHealth = maxHealth;
@@ -32,6 +36,8 @@ export class Health {
 
     this.maxShield = maxShield;
     this.currentShield = maxShield;
+
+    this.healthRegeneration = healthRegeneration;
   }
 
   // --------------------------------------------------
@@ -46,28 +52,19 @@ export class Health {
    */
   takeDamage(amount: number): DamageResult {
     if (amount < 0) {
-      throw new Error(
-        "Damage cannot be negative.",
-      );
+      throw new Error("Damage cannot be negative.",);
     }
 
     // Shield absorbs damage first.
-    const shieldDamage = Math.min(
-      this.currentShield,
-      amount,
-    );
+    const shieldDamage = Math.min(this.currentShield, amount,);
 
     this.currentShield -= shieldDamage;
 
     // Damage remaining after shield.
-    const remainingDamage =
-      amount - shieldDamage;
+    const remainingDamage = amount - shieldDamage;
 
     // Apply remaining damage to HP.
-    const healthDamage = Math.min(
-      this.currentHealth,
-      remainingDamage,
-    );
+    const healthDamage = Math.min(this.currentHealth, remainingDamage,);
 
     this.currentHealth -= healthDamage;
 
@@ -77,6 +74,38 @@ export class Health {
       totalDamage:
         shieldDamage + healthDamage,
     };
+  }
+
+  // --------------------------------------------------
+  // REGENERATION
+  // --------------------------------------------------
+
+  /**
+   * Regenerate HP over elapsed simulation time.
+   * Returns true only when current HP actually changed.
+   */
+  regenerate(deltaSeconds: number): boolean {
+    if (
+      deltaSeconds <= 0 ||
+      this.healthRegeneration <= 0 ||
+      this.currentHealth >= this.maxHealth
+    ) {
+      return false;
+    }
+
+    const regeneratedHealth = this.healthRegeneration * deltaSeconds;
+    const previousHealth = this.currentHealth;
+
+    this.currentHealth = Math.min(
+      this.maxHealth,
+      this.currentHealth + regeneratedHealth,
+    );
+
+    return this.currentHealth !== previousHealth;
+  }
+
+  getHealthRegeneration(): number {
+    return this.healthRegeneration;
   }
 
   // --------------------------------------------------
@@ -92,10 +121,7 @@ export class Health {
   }
 
   getHealthRatio(): number {
-    return (
-      this.currentHealth /
-      this.maxHealth
-    );
+    return (this.currentHealth / this.maxHealth);
   }
 
   // --------------------------------------------------

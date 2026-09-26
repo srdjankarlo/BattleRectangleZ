@@ -8,12 +8,20 @@
 export interface UnitStats {
   width: number;
   height: number;
+
   speed: number;
   mass: number;
   maxHealth: number;
+  
   bodyDamage: number;
-  bodyAttackSpeed: number,
-  armor: number;
-  magicResistance: number;
-  maxShield: number;
+  bodyAttackSpeed: number;
+
+  // Optional defensive stats. Omitted means the unit has no resistance.
+  armor?: number;
+  magicResistance?: number;
+
+  // HP regenerated per second. Omitted means 0 HP/sec.
+  healthRegeneration?: number;
+
+  maxShield?: number;
 }

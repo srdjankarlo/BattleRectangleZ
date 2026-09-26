@@ -435,8 +435,7 @@ export class BattleUI {
       const hp =
         `${unit.getHealth().toFixed(2)}/${unit.getMaxHealth().toFixed(0)}`;
 
-      const shield =
-        `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}`;
+      const shield = unit.getMaxShield() > 0 ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}` : "-";
 
       const movementName =
         unit.config.movementType.charAt(0).toUpperCase() +
@@ -466,8 +465,8 @@ export class BattleUI {
           formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[2]),
 
         formatCell(hp) +
-          formatCell(stats.armor.toString()) +
-          formatCell(stats.magicResistance.toString()) +
+          formatCell(stats.armor?.toString() ?? "-") +
+          formatCell(stats.magicResistance?.toString() ?? "-") +
           formatCell(shield),
 
         formatCell(`${stats.bodyDamage.toString()}/${stats.bodyAttackSpeed.toFixed(2).toString()}`) +

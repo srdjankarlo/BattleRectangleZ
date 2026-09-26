@@ -226,7 +226,8 @@ export class Physics {
 
     // Already separating.
     if (velocityAlongNormal > 0) {
-      return false;
+      // return false;
+      return true;
     }
 
     const impulse =

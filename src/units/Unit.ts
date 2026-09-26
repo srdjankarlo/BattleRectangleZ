@@ -56,7 +56,8 @@ export class Unit {
 
     this.health = new Health(
       stats.maxHealth,
-      stats.maxShield,
+      stats.maxShield ?? 0,
+      stats.healthRegeneration ?? 0,
     );
 
     this.combat = new Combat(
@@ -146,6 +147,12 @@ export class Unit {
 
     if (!this.isAlive()) {
       return;
+    }
+
+    // Regenerate HP before movement. Health owns the regeneration calculation;
+    // Unit only refreshes the visual bar when HP actually changed.
+    if (this.health.regenerate(deltaSeconds)) {
+      this.updateHealthBar();
     }
 
     this.movement.update(
@@ -240,6 +247,23 @@ export class Unit {
   // DAMAGE & DEATH
   // --------------------------------------------------
 
+  private getBodyAttackDamage(
+    target: Unit,
+  ): number {
+    if (
+      !this.combat.canDealBodyDamage() ||
+      !target.isAlive()
+    ) {
+      return 0;
+    }
+
+    return this.combat.calculateDamage(
+      this.combat.bodyAttackDamage,
+      DamageType.PHYSICAL,
+      target.config.stats,
+    );
+  }
+
   public resolveCollision(
     other: Unit,
   ): void {
@@ -250,13 +274,13 @@ export class Unit {
       return;
     }
 
+    // Physics handles only physical collision detection
+    // and velocity/position resolution.
     const collisionOccurred =
       this.physics.resolveCollision(
         other.physics,
       );
 
-    // Same-team units still collide physically,
-    // but do not deal body damage to each other.
     if (
       !collisionOccurred ||
       this.teamId === other.teamId
@@ -264,44 +288,16 @@ export class Unit {
       return;
     }
 
-    const thisCanAttack =
-      this.combat.canDealBodyDamage();
+    // Calculate both attacks BEFORE applying either one.
+    //
+    // This keeps the current behavior where both units can
+    // hit each other during the same collision, even if one
+    // of the attacks is lethal.
+    const thisDamage =
+      this.getBodyAttackDamage(other);
 
-    const otherCanAttack =
-      other.combat.canDealBodyDamage();
-
-    const thisWasAlive =
-      this.isAlive();
-
-    const otherWasAlive =
-      other.isAlive();
-
-    let thisDamage = 0;
-    let otherDamage = 0;
-
-    if (
-      thisCanAttack &&
-      otherWasAlive
-    ) {
-      thisDamage =
-        this.combat.calculateDamage(
-          this.combat.bodyAttackDamage,
-          DamageType.PHYSICAL,
-          other.config.stats,
-        );
-    }
-
-    if (
-      otherCanAttack &&
-      thisWasAlive
-    ) {
-      otherDamage =
-        other.combat.calculateDamage(
-          other.combat.bodyAttackDamage,
-          DamageType.PHYSICAL,
-          this.config.stats,
-        );
-    }
+    const otherDamage =
+      other.getBodyAttackDamage(this);
 
     if (thisDamage > 0) {
       other.takeDamage(thisDamage);
@@ -356,6 +352,10 @@ export class Unit {
 
   public getMaxHealth(): number {
     return this.health.getMaxHealth();
+  }
+
+  public getHealthRegeneration(): number {
+    return this.health.getHealthRegeneration();
   }
 
   public getHealthRatio(): number {

@@ -8,14 +8,12 @@ import {
 
 export class Combat {
   public readonly bodyAttackDamage: number;
-
   private readonly bodyDamageCooldownDuration: number;
-
   private bodyDamageCooldown = 0;
 
   constructor(
     bodyAttackDamage: number,
-    bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are in the corner
+    bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are glued one to another or have multiple bumps in 1s
   ) {
     if (bodyAttackDamage < 0) {
       throw new Error(
@@ -29,11 +27,9 @@ export class Combat {
       );
     }
 
-    this.bodyAttackDamage =
-      bodyAttackDamage;
+    this.bodyAttackDamage = bodyAttackDamage;
 
-    this.bodyDamageCooldownDuration =
-      1 / bodyAttackSpeed;
+    this.bodyDamageCooldownDuration = 1 / bodyAttackSpeed;
   }
 
   // --------------------------------------------------
@@ -42,8 +38,7 @@ export class Combat {
 
   update(deltaSeconds: number): void {
     if (this.bodyDamageCooldown > 0) {
-      this.bodyDamageCooldown -=
-        deltaSeconds;
+      this.bodyDamageCooldown -= deltaSeconds;
 
       if (this.bodyDamageCooldown < 0) {
         this.bodyDamageCooldown = 0;
@@ -56,14 +51,11 @@ export class Combat {
   // --------------------------------------------------
 
   canDealBodyDamage(): boolean {
-    return (
-      this.bodyDamageCooldown <= 0
-    );
+    return this.bodyDamageCooldown <= 0;
   }
 
   startBodyDamageCooldown(): void {
-    this.bodyDamageCooldown =
-      this.bodyDamageCooldownDuration;
+    this.bodyDamageCooldown = this.bodyDamageCooldownDuration;
   }
 
   // --------------------------------------------------
@@ -97,20 +89,16 @@ export class Combat {
 
     switch (damageType) {
       case DamageType.PHYSICAL:
-        resistance = targetStats.armor;
+        resistance = targetStats.armor ?? 0;
         break;
 
       case DamageType.MAGIC:
-        resistance =
-          targetStats.magicResistance;
+        resistance = targetStats.magicResistance ?? 0;
         break;
     }
 
-    const damageMultiplier =
-      100 /
-      (100 + resistance);
+    const damageMultiplier = 100 / (100 + resistance);
 
-    return rawDamage *
-      damageMultiplier;
+    return rawDamage * damageMultiplier;
   }
 }
