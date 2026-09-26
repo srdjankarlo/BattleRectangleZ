@@ -12,6 +12,7 @@ export interface UnitStats {
   mass: number;
   maxHealth: number;
   bodyDamage: number;
+  bodyAttackSpeed: number,
   armor: number;
   magicResistance: number;
   maxShield: number;

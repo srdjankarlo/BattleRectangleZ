@@ -15,7 +15,7 @@ export class Combat {
 
   constructor(
     bodyAttackDamage: number,
-    bodyDamageCooldownDuration = 0.3,
+    bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are in the corner
   ) {
     if (bodyAttackDamage < 0) {
       throw new Error(
@@ -23,9 +23,9 @@ export class Combat {
       );
     }
 
-    if (bodyDamageCooldownDuration < 0) {
+    if (bodyAttackSpeed <= 0) {
       throw new Error(
-        "Body damage cooldown cannot be negative.",
+        "Body attack speed must be greater than zero.",
       );
     }
 
@@ -33,7 +33,7 @@ export class Combat {
       bodyAttackDamage;
 
     this.bodyDamageCooldownDuration =
-      bodyDamageCooldownDuration;
+      1 / bodyAttackSpeed;
   }
 
   // --------------------------------------------------

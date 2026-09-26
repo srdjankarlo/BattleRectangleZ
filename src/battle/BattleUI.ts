@@ -3,14 +3,14 @@ import Phaser from "phaser";
 import type { Unit } from "../units/Unit";
 import {
   BATTLE_BUTTONS,
-  GAME_WIDTH,
   STATS_BODY_HEIGHT,
   STATS_BODY_TOP,
   STATS_HEADER_ROWS,
   STATS_PANEL_HEIGHT,
   STATS_TABLE,
-  STATS_TABLE_LINE_HEIGHT,
   UI_VIEWPORT,
+  STATS_TOP_ROW_COLUMN_WIDTHS,
+  STATS_BOTTOM_ROW_COLUMN_WIDTHS
 } from "./BattleLayout";
 
 export interface BattleUICallbacks {
@@ -199,17 +199,44 @@ export class BattleUI {
     headerBackground.setOrigin(0, 0).setDepth(19);
     this.uiObjects.push(headerBackground);
 
-    const formatCell = (value: string): string =>
+    const formatCell = (
+      value: string,
+      width: number = STATS_TABLE.columnWidth,
+    ): string =>
       value
-        .slice(0, STATS_TABLE.columnWidth)
-        .padEnd(STATS_TABLE.columnWidth, " ");
+        .slice(0, width)
+        .padEnd(width, " ");
+
+    // Split header rows
+    const topHeaderRows = STATS_HEADER_ROWS.slice(0, 2);
+    const bottomHeaderRows = STATS_HEADER_ROWS.slice(2);
+
+    // Format top two rows using STATS_TOP_ROW_COLUMN_WIDTHS
+    const topLines = topHeaderRows.map((row) =>
+      row
+        .map((label, colIndex) =>
+          formatCell(
+            label,
+            STATS_TOP_ROW_COLUMN_WIDTHS[colIndex] ?? STATS_TABLE.columnWidth,
+          ),
+        )
+        .join(""),
+    );
+
+    // Format last two rows using standard STATS_TABLE.columnWidth
+    const bottomLines = bottomHeaderRows.map((row) =>
+      row.map((label, colIndex) => formatCell(
+        label,
+        STATS_BOTTOM_ROW_COLUMN_WIDTHS[colIndex] ?? STATS_TABLE.columnWidth)).join(""),
+    );
+
+    // Combine all lines
+    const headerText = [...topLines, ...bottomLines].join("\n");
 
     this.statsHeaderText = this.scene.add.text(
       STATS_TABLE.textX,
       STATS_TABLE.panelTop,
-      STATS_HEADER_ROWS
-        .map((row) => row.map(formatCell).join(""))
-        .join("\n"),
+      headerText,
       {
         fontFamily: "monospace",
         fontSize: `${STATS_TABLE.fontSize}px`,
@@ -384,10 +411,13 @@ export class BattleUI {
       );
     }
 
-    const formatCell = (value: string): string =>
-      value
-        .slice(0, STATS_TABLE.columnWidth)
-        .padEnd(STATS_TABLE.columnWidth, " ");
+    const formatCell = (
+      value: string,
+      width: number = STATS_TABLE.columnWidth,
+    ): string =>
+        value
+        .slice(0, width)
+        .padEnd(width, " ");
 
     const lines: string[] = [];
 
@@ -399,7 +429,7 @@ export class BattleUI {
         ? `${unit.name} ${unit.instanceNumber}`
         : unit.name;
 
-      const teamUnit = `${unit.teamId}/${unitName}`;
+      // const teamUnit = `${unit.teamId}/${unitName}`;
       const stats = unit.config.stats;
 
       const hp =
@@ -421,23 +451,26 @@ export class BattleUI {
       );
 
       const currentMovement =
-        `${currentSpeed.toFixed(1)}`;
+        `${currentSpeed.toFixed(0)}`;
 
       // Keep the three data rows aligned with the fixed three-row header.
       // MOVE uses the same column to show the configured/base movement on
       // the top row and the current physics speed on the bottom row.
       lines.push(
-        formatCell(teamUnit) +
-          formatCell("ToDo") +
-          formatCell("ToDo") +
-          formatCell("ToDo"),
+        formatCell(`${unit.teamId}`, STATS_TOP_ROW_COLUMN_WIDTHS[0]) +
+        formatCell(`${unitName}`, STATS_TOP_ROW_COLUMN_WIDTHS[1]) +
+        formatCell(`${stats.mass}`, STATS_TOP_ROW_COLUMN_WIDTHS[2]),
+          
+        formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[0]) +
+          formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[1]) +
+          formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[2]),
 
         formatCell(hp) +
           formatCell(stats.armor.toString()) +
           formatCell(stats.magicResistance.toString()) +
           formatCell(shield),
 
-        formatCell(stats.bodyDamage.toString()) +
+        formatCell(`${stats.bodyDamage.toString()}/${stats.bodyAttackSpeed.toFixed(2).toString()}`) +
           formatCell("ToDo") +
           formatCell("ToDo") +
           formatCell(`${currentMovement}/${baseMovement} ${movementName}`),
@@ -457,8 +490,14 @@ export class BattleUI {
       this.statsValuesText.setText(formattedText);
     }
 
+    // Use Phaser's actual rendered text height instead of estimating the
+    // content height from fontSize + lineSpacing. Font metrics can differ
+    // between browsers/devices, and an underestimate leaves the final unit
+    // partially clipped when the list reaches maximum scroll.
     this.statsContentHeight =
-      lines.length * STATS_TABLE_LINE_HEIGHT;
+      Math.ceil(this.statsValuesText.height) +
+      STATS_TABLE.textTopPadding +
+      STATS_TABLE.panelBottomPadding;
 
     this.statsScrollOffsetY = Phaser.Math.Clamp(
       this.statsScrollOffsetY,

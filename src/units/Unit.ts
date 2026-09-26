@@ -61,6 +61,7 @@ export class Unit {
 
     this.combat = new Combat(
       stats.bodyDamage,
+      stats.bodyAttackSpeed,
     );
 
     this.physics = new Physics(
