@@ -434,6 +434,8 @@ export class BattleUI {
 
       const hp =
         `${unit.getHealth().toFixed(2)}/${unit.getMaxHealth().toFixed(0)}`;
+      
+      const hpregen = unit.getHealthRegeneration() > 0 ? `${unit.getHealthRegeneration}` : "-";
 
       const shield = unit.getMaxShield() > 0 ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}` : "-";
 
@@ -464,7 +466,7 @@ export class BattleUI {
           formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[1]) +
           formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[2]),
 
-        formatCell(hp) +
+        formatCell(`${hp} (${hpregen})`) +
           formatCell(stats.armor?.toString() ?? "-") +
           formatCell(stats.magicResistance?.toString() ?? "-") +
           formatCell(shield),

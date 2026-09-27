@@ -58,7 +58,7 @@ export const STATS_TABLE = {
 
   // Default width of one bottom-panel stat cell.
   // Used by HP/ARM/MR/SHLD and BD/AD/AP/MOVE.
-  columnWidth: 14,
+  columnWidth: 16,
 
   // Text appearance.
   fontSize: 13,
@@ -81,7 +81,7 @@ export const STATS_TOP_ROW_COLUMN_WIDTHS = [
   STAT_CELL_WIDTH * 1.5,
 ] as const;
 
-// Bottom panel = last two header rows (HP/ARM/MR/SHLD and BD/AD/AP/MOVE).
+// Bottom panel = last two header rows ( HP (REG) / ARM / MR / SHLD and BD/BAS / AD / AP /MS MOVE).
 // All four bottom-panel columns deliberately use the same cell width.
 export const STATS_BOTTOM_ROW_COLUMN_WIDTHS = [
   STAT_CELL_WIDTH,
@@ -93,7 +93,7 @@ export const STATS_BOTTOM_ROW_COLUMN_WIDTHS = [
 export const STATS_HEADER_ROWS = [
   ["TEAM", "UNIT", "MASS"],
   ["PASS", "ABIL", "ULT"],
-  ["HP", "ARM", "MR", "SHLD"],
+  ["HP (REG)", "ARM", "MR", "SHLD"],
   ["BD/BAS", "AD", "AP", "MOVE"],
 ] as const;
 
