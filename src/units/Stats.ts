@@ -23,5 +23,8 @@ export interface UnitStats {
   // HP regenerated per second. Omitted means 0 HP/sec.
   healthRegeneration?: number;
 
+  // ToDo
+  lifeSteal?: number;
+
   maxShield?: number;
 }

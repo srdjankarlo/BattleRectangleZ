@@ -9,8 +9,7 @@ import {
   STATS_PANEL_HEIGHT,
   STATS_TABLE,
   UI_VIEWPORT,
-  STATS_TOP_ROW_COLUMN_WIDTHS,
-  STATS_BOTTOM_ROW_COLUMN_WIDTHS
+  STATS_ROW_COLUMN_WIDTHS
 } from "./BattleLayout";
 
 export interface BattleUICallbacks {
@@ -207,31 +206,19 @@ export class BattleUI {
         .slice(0, width)
         .padEnd(width, " ");
 
-    // Split header rows
-    const topHeaderRows = STATS_HEADER_ROWS.slice(0, 2);
-    const bottomHeaderRows = STATS_HEADER_ROWS.slice(2);
-
-    // Format top two rows using STATS_TOP_ROW_COLUMN_WIDTHS
-    const topLines = topHeaderRows.map((row) =>
-      row
-        .map((label, colIndex) =>
-          formatCell(
-            label,
-            STATS_TOP_ROW_COLUMN_WIDTHS[colIndex] ?? STATS_TABLE.columnWidth,
-          ),
-        )
-        .join(""),
-    );
-
-    // Format last two rows using standard STATS_TABLE.columnWidth
-    const bottomLines = bottomHeaderRows.map((row) =>
-      row.map((label, colIndex) => formatCell(
-        label,
-        STATS_BOTTOM_ROW_COLUMN_WIDTHS[colIndex] ?? STATS_TABLE.columnWidth)).join(""),
-    );
-
-    // Combine all lines
-    const headerText = [...topLines, ...bottomLines].join("\n");
+    const headerText = STATS_HEADER_ROWS
+      .map((row, rowIndex) =>
+        row
+          .map((label, colIndex) =>
+            formatCell(
+              label,
+              STATS_ROW_COLUMN_WIDTHS[rowIndex]?.[colIndex] ??
+                STATS_TABLE.columnWidth,
+            ),
+          )
+          .join(""),
+      )
+      .join("\n");
 
     this.statsHeaderText = this.scene.add.text(
       STATS_TABLE.textX,
@@ -432,49 +419,80 @@ export class BattleUI {
       // const teamUnit = `${unit.teamId}/${unitName}`;
       const stats = unit.config.stats;
 
-      const hp =
-        `${unit.getHealth().toFixed(2)}/${unit.getMaxHealth().toFixed(0)}`;
-      
-      const hpregen = unit.getHealthRegeneration() > 0 ? `${unit.getHealthRegeneration}` : "-";
+      const hp = `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(0)} +${(stats.healthRegeneration ?? 0).toString()}`;
 
-      const shield = unit.getMaxShield() > 0 ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}` : "-";
+      const armor = stats.armor?.toString() ?? "-";
 
-      const movementName =
-        unit.config.movementType.charAt(0).toUpperCase() +
-        unit.config.movementType.slice(1);
+      const magicResistance =
+        stats.magicResistance?.toString() ?? "-";
 
-      const baseMovement =
-        `${stats.speed}`;
+      const shield =
+        unit.getMaxShield() > 0
+          ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}`
+          : "-";
+
+      const lifeSteal =
+        stats.lifeSteal !== undefined && stats.lifeSteal > 0
+          ? `${stats.lifeSteal}%`
+          : "-";
 
       const currentSpeed = Math.hypot(
         unit.physics.getVelocityX(),
         unit.physics.getVelocityY(),
       );
 
-      const currentMovement =
-        `${currentSpeed.toFixed(0)}`;
+      const movementType =
+        unit.config.movementType.charAt(0).toUpperCase() +
+        unit.config.movementType.slice(1);
 
       // Keep the three data rows aligned with the fixed three-row header.
       // MOVE uses the same column to show the configured/base movement on
       // the top row and the current physics speed on the bottom row.
       lines.push(
-        formatCell(`${unit.teamId}`, STATS_TOP_ROW_COLUMN_WIDTHS[0]) +
-        formatCell(`${unitName}`, STATS_TOP_ROW_COLUMN_WIDTHS[1]) +
-        formatCell(`${stats.mass}`, STATS_TOP_ROW_COLUMN_WIDTHS[2]),
+        formatCell(
+          `${unit.teamId}`,
+          STATS_ROW_COLUMN_WIDTHS[0][0],
+        ) +
+        formatCell(
+          unitName,
+          STATS_ROW_COLUMN_WIDTHS[0][1],
+        ) +
+        formatCell(
+          `${stats.mass}`,
+          STATS_ROW_COLUMN_WIDTHS[0][2],
+        ) +
+        formatCell(
+          `${currentSpeed.toFixed(0)}`,
+          STATS_ROW_COLUMN_WIDTHS[0][3],
+        ) +
+        formatCell(
+          `${movementType}`,
+          STATS_ROW_COLUMN_WIDTHS[0][4],
+        ),
           
-        formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[0]) +
-          formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[1]) +
-          formatCell("ToDo", STATS_TOP_ROW_COLUMN_WIDTHS[2]),
+        formatCell(hp, STATS_ROW_COLUMN_WIDTHS[1][0]) +
+        formatCell(armor, STATS_ROW_COLUMN_WIDTHS[1][1]) +
+        formatCell(
+          magicResistance,
+          STATS_ROW_COLUMN_WIDTHS[1][2],
+        ) +
+        formatCell(shield, STATS_ROW_COLUMN_WIDTHS[1][3]) +
+        formatCell(lifeSteal, STATS_ROW_COLUMN_WIDTHS[1][4]),
 
-        formatCell(`${hp} (${hpregen})`) +
-          formatCell(stats.armor?.toString() ?? "-") +
-          formatCell(stats.magicResistance?.toString() ?? "-") +
-          formatCell(shield),
+        formatCell(
+          stats.bodyDamage.toString(),
+          STATS_ROW_COLUMN_WIDTHS[2][0],
+        ) +
+        formatCell(
+          stats.bodyAttackSpeed.toString(),
+          STATS_ROW_COLUMN_WIDTHS[2][1],
+        ) +
+        formatCell("-", STATS_ROW_COLUMN_WIDTHS[2][2]) +
+        formatCell("-", STATS_ROW_COLUMN_WIDTHS[2][3]),
 
-        formatCell(`${stats.bodyDamage.toString()}/${stats.bodyAttackSpeed.toFixed(2).toString()}`) +
-          formatCell("ToDo") +
-          formatCell("ToDo") +
-          formatCell(`${currentMovement}/${baseMovement} ${movementName}`),
+        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][0]) +
+        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][1]) +
+        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][2]),
 
         "",
       );

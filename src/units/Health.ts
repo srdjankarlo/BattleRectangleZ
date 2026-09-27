@@ -76,6 +76,21 @@ export class Health {
     };
   }
 
+  heal(amount: number): number {
+    if (amount <= 0 || !this.isAlive()) {
+      return 0;
+    }
+
+    const previousHealth = this.currentHealth;
+
+    this.currentHealth = Math.min(
+      this.maxHealth,
+      this.currentHealth + amount,
+    );
+
+    return this.currentHealth - previousHealth;
+  }
+
   // --------------------------------------------------
   // REGENERATION
   // --------------------------------------------------

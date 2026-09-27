@@ -6,6 +6,7 @@ import { Health } from "./Health";
 import { Physics } from "./Physics";
 import type { UnitConfig } from "./UnitConfig";
 import { DamageType } from "./Damage";
+import type { DamageResult } from "./Health";
 
 export class Unit {
   // --------------------------------------------------
@@ -63,6 +64,7 @@ export class Unit {
     this.combat = new Combat(
       stats.bodyDamage,
       stats.bodyAttackSpeed,
+      stats.lifeSteal ?? 0,
     );
 
     this.physics = new Physics(
@@ -300,21 +302,43 @@ export class Unit {
       other.getBodyAttackDamage(this);
 
     if (thisDamage > 0) {
-      other.takeDamage(thisDamage);
+      const result = other.takeDamage(thisDamage);
+      const healing = this.combat.calculateLifeStealHealing(
+        result.healthDamage,
+      );
+
+      if (healing > 0) {
+        this.health.heal(healing);
+        this.updateHealthBar();
+      }
+
       this.combat.startBodyDamageCooldown();
     }
 
     if (otherDamage > 0) {
-      this.takeDamage(otherDamage);
+      const result = this.takeDamage(otherDamage);
+      const healing = other.combat.calculateLifeStealHealing(
+        result.healthDamage,
+      );
+
+      if (healing > 0) {
+        other.health.heal(healing);
+        other.updateHealthBar();
+      }
+
       other.combat.startBodyDamageCooldown();
     }
   }
 
   private takeDamage(
     amount: number,
-  ): void {
+  ): DamageResult {
     if (!this.isAlive()) {
-      return;
+      return {
+        shieldDamage: 0,
+        healthDamage: 0,
+        totalDamage: 0,
+      };
     }
 
     const result = this.health.takeDamage(
@@ -330,6 +354,8 @@ export class Unit {
     if (!this.isAlive()) {
       this.die();
     }
+
+    return result;
   }
 
   private die(): void {

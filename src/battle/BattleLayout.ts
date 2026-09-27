@@ -69,32 +69,22 @@ export const STATS_TABLE = {
   updateIntervalMs: 100,
 } as const;
 
-// Top panel = first two header rows (TEAM/UNIT/MASS and PASS/ABIL/ULT).
-// These rows use their own widths so they can occupy the screen from the left
-// edge without inheriting the 4-column layout used by the lower stats panel.
-const STAT_CELL_WIDTH = STATS_TABLE.columnWidth;
-
-// Widths of the top-panel columns: TEAM, UNIT, MASS.
-export const STATS_TOP_ROW_COLUMN_WIDTHS = [
-  STAT_CELL_WIDTH * 1.5,
-  STAT_CELL_WIDTH * 1.5,
-  STAT_CELL_WIDTH * 1.5,
-] as const;
-
-// Bottom panel = last two header rows ( HP (REG) / ARM / MR / SHLD and BD/BAS / AD / AP /MS MOVE).
-// All four bottom-panel columns deliberately use the same cell width.
-export const STATS_BOTTOM_ROW_COLUMN_WIDTHS = [
-  STAT_CELL_WIDTH,
-  STAT_CELL_WIDTH,
-  STAT_CELL_WIDTH,
-  STAT_CELL_WIDTH,
+// Each header row has its own cell widths.
+// Rows 1 and 2 are compact so all information fits on a phone.
+// Row 3 gets more room for combat stats.
+// Row 4 is widest because PASS / ABIL / ULT are ability names/descriptions.
+export const STATS_ROW_COLUMN_WIDTHS = [
+  [15, 15, 15, 15, 15],
+  [15, 15, 15, 15, 15],
+  [20, 20, 20, 20],
+  [25, 25, 25],
 ] as const;
 
 export const STATS_HEADER_ROWS = [
-  ["TEAM", "UNIT", "MASS"],
+  ["TEAM", "UNIT", "MASS", "MS", "MOVE"],
+  ["HP / REG", "ARM", "MR", "SHL", "LS"],
+  ["BD", "BAS", "AD", "AP"],
   ["PASS", "ABIL", "ULT"],
-  ["HP (REG)", "ARM", "MR", "SHLD"],
-  ["BD/BAS", "AD", "AP", "MOVE"],
 ] as const;
 
 export const STATS_TABLE_LINE_HEIGHT =

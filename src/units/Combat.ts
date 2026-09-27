@@ -10,26 +10,28 @@ export class Combat {
   public readonly bodyAttackDamage: number;
   private readonly bodyDamageCooldownDuration: number;
   private bodyDamageCooldown = 0;
+  public readonly lifeSteal: number;
 
   constructor(
     bodyAttackDamage: number,
     bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are glued one to another or have multiple bumps in 1s
+    lifeSteal = 0,
   ) {
     if (bodyAttackDamage < 0) {
-      throw new Error(
-        "Body attack damage cannot be negative.",
-      );
+      throw new Error("Body attack damage cannot be negative.",);
     }
 
     if (bodyAttackSpeed <= 0) {
-      throw new Error(
-        "Body attack speed must be greater than zero.",
-      );
+      throw new Error("Body attack speed must be greater than zero.",);
+    }
+
+    if (lifeSteal < 0) {
+      throw new Error("Life steal cannot be negative.",);
     }
 
     this.bodyAttackDamage = bodyAttackDamage;
-
     this.bodyDamageCooldownDuration = 1 / bodyAttackSpeed;
+    this.lifeSteal = lifeSteal;
   }
 
   // --------------------------------------------------
@@ -56,6 +58,14 @@ export class Combat {
 
   startBodyDamageCooldown(): void {
     this.bodyDamageCooldown = this.bodyDamageCooldownDuration;
+  }
+
+  calculateLifeStealHealing(healthDamage: number): number {
+    if (healthDamage <= 0 || this.lifeSteal <= 0) {
+      return 0;
+    }
+
+    return healthDamage * (this.lifeSteal / 100);
   }
 
   // --------------------------------------------------
