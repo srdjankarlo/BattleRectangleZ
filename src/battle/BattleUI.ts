@@ -25,6 +25,7 @@ export interface BattleUICallbacks {
 interface StatCell {
   background: Phaser.GameObjects.Rectangle;
   text: Phaser.GameObjects.Text;
+  currentValue: string;
 }
 
 const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
@@ -50,20 +51,17 @@ const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
   ULT: "ULT",
 };
 
-/**
- * Owns the battle screen UI.
- *
- * This is intentionally separate from BattleScene so adding more UI later
- * does not keep making the simulation class larger.
- */
 export class BattleUI {
   private readonly scene: Phaser.Scene;
   private readonly callbacks: BattleUICallbacks;
 
   private pauseButtonText!: Phaser.GameObjects.Text;
-  private statsHeaderContainer!: Phaser.GameObjects.Container;
-  private statsValuesContainer!: Phaser.GameObjects.Container;
-  private statsMaskShape!: Phaser.GameObjects.Graphics;
+  
+  // OPTIMIZATION: Separated containers to enforce WebGL batching
+  private statsHeaderBgContainer!: Phaser.GameObjects.Container;
+  private statsHeaderTextContainer!: Phaser.GameObjects.Container;
+  private statsBgContainer!: Phaser.GameObjects.Container;
+  private statsTextContainer!: Phaser.GameObjects.Container;
 
   private statsDragging = false;
   private statsLastPointerY = 0;
@@ -75,9 +73,9 @@ export class BattleUI {
 
   private uiObjects: Phaser.GameObjects.GameObject[] = [];
   
-  // Object pooling for the dynamic stat cells
   private statCells: StatCell[] = [];
   private noUnitsText?: Phaser.GameObjects.Text;
+  private readonly cellsPerUnit: number;
 
   private readonly wheelHandler = (
     pointer: Phaser.Input.Pointer,
@@ -123,12 +121,10 @@ export class BattleUI {
     this.callbacks.onPauseToggle();
   };
 
-  constructor(
-    scene: Phaser.Scene,
-    callbacks: BattleUICallbacks,
-  ) {
+  constructor(scene: Phaser.Scene, callbacks: BattleUICallbacks) {
     this.scene = scene;
     this.callbacks = callbacks;
+    this.cellsPerUnit = STATS_HEADER_ROWS.reduce((sum, row) => sum + row.length, 0);
   }
 
   private getStatColors(label: string): {
@@ -145,7 +141,8 @@ export class BattleUI {
     value: string,
     backgroundColor: number,
     textColor: string,
-    depth: number,
+    bgContainer: Phaser.GameObjects.Container,
+    textContainer: Phaser.GameObjects.Container
   ): StatCell {
     const background = this.scene.add.rectangle(
       x,
@@ -157,8 +154,7 @@ export class BattleUI {
 
     background
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x121118, 0.7)
-      .setDepth(depth);
+      .setStrokeStyle(1, 0x121118, 0.7);
 
     const text = this.scene.add.text(
       x + 5,
@@ -172,11 +168,13 @@ export class BattleUI {
       },
     );
 
-    text
-      .setOrigin(0, 0.5)
-      .setDepth(depth + 1);
+    text.setOrigin(0, 0.5);
 
-    return { background, text };
+    // OPTIMIZATION: Push straight into isolated containers
+    bgContainer.add(background);
+    textContainer.add(text);
+
+    return { background, text, currentValue: value };
   }
 
   create(
@@ -184,10 +182,6 @@ export class BattleUI {
     uiCamera: Phaser.Cameras.Scene2D.Camera,
     worldObjects: Phaser.GameObjects.GameObject[],
   ): void {
-    // ----------------------------------------------
-    // UI BACKGROUND
-    // ----------------------------------------------
-
     const uiBackground = this.scene.add.rectangle(
       0,
       0,
@@ -195,13 +189,8 @@ export class BattleUI {
       UI_VIEWPORT.height,
       0x121118,
     );
-
     uiBackground.setOrigin(0, 0);
     this.uiObjects.push(uiBackground);
-
-    // ----------------------------------------------
-    // BUTTON ROW COVER
-    // ----------------------------------------------
 
     const buttonRowBgCover = this.scene.add.rectangle(
       0,
@@ -210,13 +199,8 @@ export class BattleUI {
       STATS_TABLE.panelTop,
       0x121118,
     );
-
     buttonRowBgCover.setOrigin(0, 0).setDepth(28);
     this.uiObjects.push(buttonRowBgCover);
-
-    // ----------------------------------------------
-    // BUTTONS
-    // ----------------------------------------------
 
     const restartButton = this.createButton(
       BATTLE_BUTTONS.positions.restart,
@@ -243,10 +227,6 @@ export class BattleUI {
     );
     menuButton.background.on("pointerdown", this.callbacks.onMenu);
 
-    // ----------------------------------------------
-    // STATS PANEL
-    // ----------------------------------------------
-
     const statsPanelBackground = this.scene.add.rectangle(
       0,
       STATS_TABLE.panelTop,
@@ -254,17 +234,11 @@ export class BattleUI {
       STATS_PANEL_HEIGHT,
       0x1a1924,
     );
-
     statsPanelBackground
       .setOrigin(0, 0)
       .setStrokeStyle(2, 0x3d3954)
       .setDepth(0);
-
     this.uiObjects.push(statsPanelBackground);
-
-    // ----------------------------------------------
-    // FIXED TABLE HEADER
-    // ----------------------------------------------
 
     const headerBackground = this.scene.add.rectangle(
       0,
@@ -273,47 +247,36 @@ export class BattleUI {
       STATS_TABLE.headerHeight,
       0x1a1924,
     );
-
     headerBackground.setOrigin(0, 0).setDepth(19);
     this.uiObjects.push(headerBackground);
 
-    this.statsHeaderContainer = this.scene.add.container(
-      STATS_TABLE.textX,
-      STATS_TABLE.panelTop,
-    );
-
-    this.statsHeaderContainer.setDepth(20);
-    this.uiObjects.push(this.statsHeaderContainer);
+    this.statsHeaderBgContainer = this.scene.add.container(STATS_TABLE.textX, STATS_TABLE.panelTop).setDepth(20);
+    this.statsHeaderTextContainer = this.scene.add.container(STATS_TABLE.textX, STATS_TABLE.panelTop).setDepth(21);
+    this.uiObjects.push(this.statsHeaderBgContainer, this.statsHeaderTextContainer);
 
     let headerY = 0;
-
     for (let rowIndex = 0; rowIndex < STATS_HEADER_ROWS.length; rowIndex++) {
       const row = STATS_HEADER_ROWS[rowIndex];
       const widths = STATS_ROW_COLUMN_WIDTHS[rowIndex];
-
       let x = 0;
 
       for (let colIndex = 0; colIndex < row.length; colIndex++) {
         const label = row[colIndex];
         const width = widths[colIndex];
-
         const colors = this.getStatColors(label);
 
-        const cell = this.createStatCell(
+        this.createStatCell(
           x,
           headerY,
           width,
           label,
           colors.background,
           colors.text,
-          20,
+          this.statsHeaderBgContainer,
+          this.statsHeaderTextContainer
         );
-
-        this.statsHeaderContainer.add([cell.background, cell.text]);
-
         x += width + STATS_TABLE.cellGap;
       }
-
       headerY += STATS_TABLE.cellHeight + STATS_TABLE.cellGap;
     }
 
@@ -324,38 +287,13 @@ export class BattleUI {
       1,
       0x4a465f,
     );
-
-    headerSeparator.setOrigin(0, 0).setDepth(20);
+    headerSeparator.setOrigin(0, 0).setDepth(22);
     this.uiObjects.push(headerSeparator);
 
-    // ----------------------------------------------
-    // SCROLLABLE TABLE BODY
-    // ----------------------------------------------
-
-    this.statsValuesContainer = this.scene.add.container(
-      STATS_TABLE.textX,
-      STATS_BODY_TOP + STATS_TABLE.textTopPadding,
-    );
-
-    this.statsValuesContainer.setDepth(10);
-    this.uiObjects.push(this.statsValuesContainer);
-
-    this.statsMaskShape = this.scene.add.graphics();
-    this.statsMaskShape.fillStyle(0xffffff, 1);
-    this.statsMaskShape.fillRect(
-      0,
-      STATS_BODY_TOP,
-      UI_VIEWPORT.width,
-      STATS_BODY_HEIGHT,
-    );
-    this.statsMaskShape.setVisible(false);
-
-    const statsMask = this.statsMaskShape.createGeometryMask();
-    this.statsValuesContainer.setMask(statsMask);
-
-    // ----------------------------------------------
-    // INPUT
-    // ----------------------------------------------
+    // Separating moving backgrounds and text ensures they never break WebGL batching
+    this.statsBgContainer = this.scene.add.container(STATS_TABLE.textX, STATS_BODY_TOP + STATS_TABLE.textTopPadding).setDepth(10);
+    this.statsTextContainer = this.scene.add.container(STATS_TABLE.textX, STATS_BODY_TOP + STATS_TABLE.textTopPadding).setDepth(11);
+    this.uiObjects.push(this.statsBgContainer, this.statsTextContainer);
 
     this.scene.input.keyboard?.on("keydown-P", this.keyDownHandler);
     this.scene.input.on("wheel", this.wheelHandler);
@@ -364,13 +302,8 @@ export class BattleUI {
     this.scene.input.on("pointerup", this.pointerUpHandler);
     this.scene.input.on("pointerupoutside", this.pointerUpHandler);
 
-    // ----------------------------------------------
-    // CAMERA FILTERING
-    // ----------------------------------------------
-
     uiCamera.ignore(worldObjects);
     worldCamera.ignore(this.uiObjects);
-    worldCamera.ignore([this.statsMaskShape]);
 
     this.updatePauseButton();
     this.updateStats();
@@ -408,14 +341,8 @@ export class BattleUI {
     const timer = this.formatDuration(
       this.callbacks.getElapsedSeconds(),
     );
-
-    const action = this.callbacks.isPaused()
-      ? "RESUME"
-      : "PAUSE";
-
-    this.pauseButtonText.setText(
-      `${timer} ${action}`,
-    );
+    const action = this.callbacks.isPaused() ? "RESUME" : "PAUSE";
+    this.pauseButtonText.setText(`${timer} ${action}`);
   }
 
   private createButton(
@@ -452,7 +379,6 @@ export class BattleUI {
     );
 
     text.setOrigin(0.5, 0.5).setDepth(31);
-
     this.uiObjects.push(background, text);
 
     return { background, text };
@@ -472,32 +398,41 @@ export class BattleUI {
     let cellIndex = 0;
     let currentY = 0;
 
-    for (const unit of units) {
-      const duplicate = (nameCounts.get(unit.name) ?? 0) > 1;
-      const unitName = duplicate
-        ? `${unit.name} ${unit.instanceNumber}`
-        : unit.name;
+    const visibleTop = this.statsScrollOffsetY - (STATS_TABLE.cellHeight * 4);
+    const visibleBottom = this.statsScrollOffsetY + STATS_BODY_HEIGHT + STATS_TABLE.cellHeight;
 
+    const unitBlockHeight = 
+      (STATS_TABLE.cellHeight + STATS_TABLE.cellGap) * STATS_HEADER_ROWS.length +
+      (STATS_TABLE.unitGap ?? 5);
+
+    for (const unit of units) {
+      const isUnitVisible = currentY + unitBlockHeight >= visibleTop && currentY <= visibleBottom;
+
+      if (!isUnitVisible) {
+        for (let i = 0; i < this.cellsPerUnit; i++) {
+          if (cellIndex < this.statCells.length) {
+            this.statCells[cellIndex].background.setVisible(false);
+            this.statCells[cellIndex].text.setVisible(false);
+          }
+          cellIndex++;
+        }
+        currentY += unitBlockHeight;
+        continue;
+      }
+
+      const duplicate = (nameCounts.get(unit.name) ?? 0) > 1;
+      const unitName = duplicate ? `${unit.name} ${unit.instanceNumber}` : unit.name;
       const stats = unit.config.stats;
-      const hp = `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(0)} +${(stats.healthRegeneration ?? 0).toString()}`;
+      
+      const hp = `${unit.getHealth().toFixed(0)}/${unit.getMaxHealth().toFixed(0)} +${(stats.healthRegeneration ?? 0).toString()}`;
       const armor = stats.armor?.toString() ?? "-";
       const magicResistance = stats.magicResistance?.toString() ?? "-";
-      const shield = unit.getMaxShield() > 0
-          ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}`
-          : "-";
-      const lifeSteal = stats.lifeSteal !== undefined && stats.lifeSteal > 0
-          ? `${stats.lifeSteal}%`
-          : "-";
+      const shield = unit.getMaxShield() > 0 ? `${unit.getShield().toFixed(0)}/${unit.getMaxShield().toFixed(0)}` : "-";
+      const lifeSteal = stats.lifeSteal !== undefined && stats.lifeSteal > 0 ? `${stats.lifeSteal}%` : "-";
 
-      const currentSpeed = Math.hypot(
-        unit.physics.getVelocityX(),
-        unit.physics.getVelocityY(),
-      );
-      const movementType =
-        unit.config.movementType.charAt(0).toUpperCase() +
-        unit.config.movementType.slice(1);
+      const currentSpeed = Math.hypot(unit.physics.getVelocityX(), unit.physics.getVelocityY());
+      const movementType = unit.config.movementType.charAt(0).toUpperCase() + unit.config.movementType.slice(1);
 
-      // Pre-calculate the values matching our headers
       const rowValues = [
         [`${unit.teamId}`, unitName, `${stats.mass}`, `${currentSpeed.toFixed(0)}`, movementType],
         [hp, armor, magicResistance, shield, lifeSteal],
@@ -518,20 +453,18 @@ export class BattleUI {
           const colors = this.getStatColors(label);
 
           if (cellIndex < this.statCells.length) {
-            // Reuse existing cell
             const cell = this.statCells[cellIndex];
             cell.background.setPosition(currentX, currentY);
-            cell.background.setFillStyle(colors.background);
-            cell.background.setSize(width, STATS_TABLE.cellHeight);
-            
             cell.text.setPosition(currentX + 5, currentY + STATS_TABLE.cellHeight / 2);
-            cell.text.setText(value);
-            cell.text.setColor(colors.text);
             
+            if (cell.currentValue !== value) {
+              cell.text.setText(value);
+              cell.currentValue = value;
+            }
+
             cell.background.setVisible(true);
             cell.text.setVisible(true);
           } else {
-            // Instantiate new cell
             const cell = this.createStatCell(
               currentX,
               currentY,
@@ -539,9 +472,9 @@ export class BattleUI {
               value,
               colors.background,
               colors.text,
-              10
+              this.statsBgContainer,
+              this.statsTextContainer
             );
-            this.statsValuesContainer.add([cell.background, cell.text]);
             this.statCells.push(cell);
           }
 
@@ -553,13 +486,11 @@ export class BattleUI {
       currentY += STATS_TABLE.unitGap ?? 5;
     }
 
-    // Hide any unused objects inside the object pool
     for (let i = cellIndex; i < this.statCells.length; i++) {
       this.statCells[i].background.setVisible(false);
       this.statCells[i].text.setVisible(false);
     }
 
-    // Handle No Units state
     if (units.length === 0) {
       if (!this.noUnitsText) {
         this.noUnitsText = this.scene.add.text(0, 0, "NO UNITS REMAINING", {
@@ -568,7 +499,7 @@ export class BattleUI {
           fontStyle: "bold",
           color: "#ffffff",
         }).setDepth(10);
-        this.statsValuesContainer.add(this.noUnitsText);
+        this.statsTextContainer.add(this.noUnitsText);
       }
       this.noUnitsText.setVisible(true);
       this.statsContentHeight = this.noUnitsText.height + STATS_TABLE.panelBottomPadding;
@@ -596,11 +527,9 @@ export class BattleUI {
   }
 
   private updateStatsTextPosition(): void {
-    // Scroll the container instead of text lines
-    this.statsValuesContainer.y =
-      STATS_BODY_TOP +
-      STATS_TABLE.textTopPadding -
-      this.statsScrollOffsetY;
+    const yPos = STATS_BODY_TOP + STATS_TABLE.textTopPadding - this.statsScrollOffsetY;
+    this.statsBgContainer.y = yPos;
+    this.statsTextContainer.y = yPos;
   }
 
   private scrollStats(amount: number): void {
@@ -613,14 +542,9 @@ export class BattleUI {
     this.updateStatsTextPosition();
   }
 
-  private isInsideStatsBody(
-    pointer: Phaser.Input.Pointer,
-  ): boolean {
-    const bodyTopOnScreen =
-      UI_VIEWPORT.y + STATS_BODY_TOP;
-
-    const bodyBottomOnScreen =
-      bodyTopOnScreen + STATS_BODY_HEIGHT;
+  private isInsideStatsBody(pointer: Phaser.Input.Pointer): boolean {
+    const bodyTopOnScreen = UI_VIEWPORT.y + STATS_BODY_TOP;
+    const bodyBottomOnScreen = bodyTopOnScreen + STATS_BODY_HEIGHT;
 
     return (
       pointer.y >= bodyTopOnScreen &&
@@ -647,9 +571,5 @@ export class BattleUI {
     this.scene.input.off("pointermove", this.pointerMoveHandler);
     this.scene.input.off("pointerup", this.pointerUpHandler);
     this.scene.input.off("pointerupoutside", this.pointerUpHandler);
-
-    if (this.statsMaskShape) {
-      this.statsMaskShape.destroy();
-    }
   }
 }
