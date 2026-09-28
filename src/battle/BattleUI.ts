@@ -9,7 +9,8 @@ import {
   STATS_PANEL_HEIGHT,
   STATS_TABLE,
   UI_VIEWPORT,
-  STATS_ROW_COLUMN_WIDTHS
+  STATS_ROW_COLUMN_WIDTHS,
+  STAT_COLORS,
 } from "./BattleLayout";
 
 export interface BattleUICallbacks {
@@ -20,6 +21,34 @@ export interface BattleUICallbacks {
   onRestart: () => void;
   onMenu: () => void;
 }
+
+interface StatCell {
+  background: Phaser.GameObjects.Rectangle;
+  text: Phaser.GameObjects.Text;
+}
+
+const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
+  TEAM: "IDENTITY",
+  UNIT: "IDENTITY",
+  MASS: "MASS",
+  MS: "MOVE",
+  MOVE: "MOVE",
+
+  "HP / REG": "HP",
+  ARM: "ARM",
+  MR: "MR",
+  SHL: "SHL",
+  LS: "LS",
+
+  BD: "BD",
+  BAS: "BAS",
+  AD: "AD",
+  AP: "AP",
+
+  PASS: "PASS",
+  ABIL: "ABIL",
+  ULT: "ULT",
+};
 
 /**
  * Owns the battle screen UI.
@@ -32,9 +61,8 @@ export class BattleUI {
   private readonly callbacks: BattleUICallbacks;
 
   private pauseButtonText!: Phaser.GameObjects.Text;
-  private statsHeaderText!: Phaser.GameObjects.Text;
-  private statsValuesText!: Phaser.GameObjects.Text;
-
+  private statsHeaderContainer!: Phaser.GameObjects.Container;
+  private statsValuesContainer!: Phaser.GameObjects.Container;
   private statsMaskShape!: Phaser.GameObjects.Graphics;
 
   private statsDragging = false;
@@ -44,9 +72,12 @@ export class BattleUI {
 
   private lastDisplayedBattleSecond = -1;
   private updateTimerMs = 0;
-  private lastStatsText = "";
 
   private uiObjects: Phaser.GameObjects.GameObject[] = [];
+  
+  // Object pooling for the dynamic stat cells
+  private statCells: StatCell[] = [];
+  private noUnitsText?: Phaser.GameObjects.Text;
 
   private readonly wheelHandler = (
     pointer: Phaser.Input.Pointer,
@@ -98,6 +129,54 @@ export class BattleUI {
   ) {
     this.scene = scene;
     this.callbacks = callbacks;
+  }
+
+  private getStatColors(label: string): {
+    background: number;
+    text: string;
+  } {
+    return STAT_COLORS[STAT_COLOR_KEYS[label] ?? "DEFAULT"];
+  }
+
+  private createStatCell(
+    x: number,
+    y: number,
+    width: number,
+    value: string,
+    backgroundColor: number,
+    textColor: string,
+    depth: number,
+  ): StatCell {
+    const background = this.scene.add.rectangle(
+      x,
+      y,
+      width,
+      STATS_TABLE.cellHeight,
+      backgroundColor,
+    );
+
+    background
+      .setOrigin(0, 0)
+      .setStrokeStyle(1, 0x121118, 0.7)
+      .setDepth(depth);
+
+    const text = this.scene.add.text(
+      x + 5,
+      y + STATS_TABLE.cellHeight / 2,
+      value,
+      {
+        fontFamily: "monospace",
+        fontSize: `${STATS_TABLE.fontSize}px`,
+        fontStyle: "bold",
+        color: textColor,
+      },
+    );
+
+    text
+      .setOrigin(0, 0.5)
+      .setDepth(depth + 1);
+
+    return { background, text };
   }
 
   create(
@@ -198,43 +277,45 @@ export class BattleUI {
     headerBackground.setOrigin(0, 0).setDepth(19);
     this.uiObjects.push(headerBackground);
 
-    const formatCell = (
-      value: string,
-      width: number = STATS_TABLE.columnWidth,
-    ): string =>
-      value
-        .slice(0, width)
-        .padEnd(width, " ");
-
-    const headerText = STATS_HEADER_ROWS
-      .map((row, rowIndex) =>
-        row
-          .map((label, colIndex) =>
-            formatCell(
-              label,
-              STATS_ROW_COLUMN_WIDTHS[rowIndex]?.[colIndex] ??
-                STATS_TABLE.columnWidth,
-            ),
-          )
-          .join(""),
-      )
-      .join("\n");
-
-    this.statsHeaderText = this.scene.add.text(
+    this.statsHeaderContainer = this.scene.add.container(
       STATS_TABLE.textX,
       STATS_TABLE.panelTop,
-      headerText,
-      {
-        fontFamily: "monospace",
-        fontSize: `${STATS_TABLE.fontSize}px`,
-        fontStyle: "bold",
-        color: "#ffffff",
-        lineSpacing: STATS_TABLE.lineSpacing,
-      },
     );
 
-    this.statsHeaderText.setDepth(20);
-    this.uiObjects.push(this.statsHeaderText);
+    this.statsHeaderContainer.setDepth(20);
+    this.uiObjects.push(this.statsHeaderContainer);
+
+    let headerY = 0;
+
+    for (let rowIndex = 0; rowIndex < STATS_HEADER_ROWS.length; rowIndex++) {
+      const row = STATS_HEADER_ROWS[rowIndex];
+      const widths = STATS_ROW_COLUMN_WIDTHS[rowIndex];
+
+      let x = 0;
+
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const label = row[colIndex];
+        const width = widths[colIndex];
+
+        const colors = this.getStatColors(label);
+
+        const cell = this.createStatCell(
+          x,
+          headerY,
+          width,
+          label,
+          colors.background,
+          colors.text,
+          20,
+        );
+
+        this.statsHeaderContainer.add([cell.background, cell.text]);
+
+        x += width + STATS_TABLE.cellGap;
+      }
+
+      headerY += STATS_TABLE.cellHeight + STATS_TABLE.cellGap;
+    }
 
     const headerSeparator = this.scene.add.rectangle(
       0,
@@ -251,23 +332,14 @@ export class BattleUI {
     // SCROLLABLE TABLE BODY
     // ----------------------------------------------
 
-    this.statsValuesText = this.scene.add.text(
+    this.statsValuesContainer = this.scene.add.container(
       STATS_TABLE.textX,
       STATS_BODY_TOP + STATS_TABLE.textTopPadding,
-      "",
-      {
-        fontFamily: "monospace",
-        fontSize: `${STATS_TABLE.fontSize}px`,
-        color: "#eeeeee",
-        lineSpacing: STATS_TABLE.lineSpacing,
-      },
     );
 
-    this.statsValuesText.setDepth(10);
-    this.uiObjects.push(this.statsValuesText);
+    this.statsValuesContainer.setDepth(10);
+    this.uiObjects.push(this.statsValuesContainer);
 
-    // Phaser version compatibility: create the mask with add.graphics()
-    // instead of relying on make.graphics({ add: false }).
     this.statsMaskShape = this.scene.add.graphics();
     this.statsMaskShape.fillStyle(0xffffff, 1);
     this.statsMaskShape.fillRect(
@@ -279,7 +351,7 @@ export class BattleUI {
     this.statsMaskShape.setVisible(false);
 
     const statsMask = this.statsMaskShape.createGeometryMask();
-    this.statsValuesText.setMask(statsMask);
+    this.statsValuesContainer.setMask(statsMask);
 
     // ----------------------------------------------
     // INPUT
@@ -303,7 +375,6 @@ export class BattleUI {
     this.updatePauseButton();
     this.updateStats();
 
-    // Make sure the scene removes the input listeners on restart.
     this.scene.events.once(
       Phaser.Scenes.Events.SHUTDOWN,
       this.destroy,
@@ -398,41 +469,23 @@ export class BattleUI {
       );
     }
 
-    const formatCell = (
-      value: string,
-      width: number = STATS_TABLE.columnWidth,
-    ): string =>
-        value
-        .slice(0, width)
-        .padEnd(width, " ");
-
-    const lines: string[] = [];
+    let cellIndex = 0;
+    let currentY = 0;
 
     for (const unit of units) {
-      const duplicate =
-        (nameCounts.get(unit.name) ?? 0) > 1;
-
+      const duplicate = (nameCounts.get(unit.name) ?? 0) > 1;
       const unitName = duplicate
         ? `${unit.name} ${unit.instanceNumber}`
         : unit.name;
 
-      // const teamUnit = `${unit.teamId}/${unitName}`;
       const stats = unit.config.stats;
-
       const hp = `${unit.getHealth().toFixed(1)}/${unit.getMaxHealth().toFixed(0)} +${(stats.healthRegeneration ?? 0).toString()}`;
-
       const armor = stats.armor?.toString() ?? "-";
-
-      const magicResistance =
-        stats.magicResistance?.toString() ?? "-";
-
-      const shield =
-        unit.getMaxShield() > 0
+      const magicResistance = stats.magicResistance?.toString() ?? "-";
+      const shield = unit.getMaxShield() > 0
           ? `${unit.getShield().toFixed(1)}/${unit.getMaxShield().toFixed(0)}`
           : "-";
-
-      const lifeSteal =
-        stats.lifeSteal !== undefined && stats.lifeSteal > 0
+      const lifeSteal = stats.lifeSteal !== undefined && stats.lifeSteal > 0
           ? `${stats.lifeSteal}%`
           : "-";
 
@@ -440,83 +493,91 @@ export class BattleUI {
         unit.physics.getVelocityX(),
         unit.physics.getVelocityY(),
       );
-
       const movementType =
         unit.config.movementType.charAt(0).toUpperCase() +
         unit.config.movementType.slice(1);
 
-      // Keep the three data rows aligned with the fixed three-row header.
-      // MOVE uses the same column to show the configured/base movement on
-      // the top row and the current physics speed on the bottom row.
-      lines.push(
-        formatCell(
-          `${unit.teamId}`,
-          STATS_ROW_COLUMN_WIDTHS[0][0],
-        ) +
-        formatCell(
-          unitName,
-          STATS_ROW_COLUMN_WIDTHS[0][1],
-        ) +
-        formatCell(
-          `${stats.mass}`,
-          STATS_ROW_COLUMN_WIDTHS[0][2],
-        ) +
-        formatCell(
-          `${currentSpeed.toFixed(0)}`,
-          STATS_ROW_COLUMN_WIDTHS[0][3],
-        ) +
-        formatCell(
-          `${movementType}`,
-          STATS_ROW_COLUMN_WIDTHS[0][4],
-        ),
-          
-        formatCell(hp, STATS_ROW_COLUMN_WIDTHS[1][0]) +
-        formatCell(armor, STATS_ROW_COLUMN_WIDTHS[1][1]) +
-        formatCell(
-          magicResistance,
-          STATS_ROW_COLUMN_WIDTHS[1][2],
-        ) +
-        formatCell(shield, STATS_ROW_COLUMN_WIDTHS[1][3]) +
-        formatCell(lifeSteal, STATS_ROW_COLUMN_WIDTHS[1][4]),
+      // Pre-calculate the values matching our headers
+      const rowValues = [
+        [`${unit.teamId}`, unitName, `${stats.mass}`, `${currentSpeed.toFixed(0)}`, movementType],
+        [hp, armor, magicResistance, shield, lifeSteal],
+        [stats.bodyDamage.toString(), stats.bodyAttackSpeed.toString(), "-", "-"],
+        ["-", "-", "-"],
+      ];
 
-        formatCell(
-          stats.bodyDamage.toString(),
-          STATS_ROW_COLUMN_WIDTHS[2][0],
-        ) +
-        formatCell(
-          stats.bodyAttackSpeed.toString(),
-          STATS_ROW_COLUMN_WIDTHS[2][1],
-        ) +
-        formatCell("-", STATS_ROW_COLUMN_WIDTHS[2][2]) +
-        formatCell("-", STATS_ROW_COLUMN_WIDTHS[2][3]),
+      for (let rowIndex = 0; rowIndex < STATS_HEADER_ROWS.length; rowIndex++) {
+        const widths = STATS_ROW_COLUMN_WIDTHS[rowIndex];
+        const labels = STATS_HEADER_ROWS[rowIndex];
+        const values = rowValues[rowIndex];
+        let currentX = 0;
 
-        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][0]) +
-        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][1]) +
-        formatCell("-", STATS_ROW_COLUMN_WIDTHS[3][2]),
+        for (let colIndex = 0; colIndex < widths.length; colIndex++) {
+          const width = widths[colIndex];
+          const label = labels[colIndex];
+          const value = values[colIndex] ?? "-";
+          const colors = this.getStatColors(label);
 
-        "",
-      );
+          if (cellIndex < this.statCells.length) {
+            // Reuse existing cell
+            const cell = this.statCells[cellIndex];
+            cell.background.setPosition(currentX, currentY);
+            cell.background.setFillStyle(colors.background);
+            cell.background.setSize(width, STATS_TABLE.cellHeight);
+            
+            cell.text.setPosition(currentX + 5, currentY + STATS_TABLE.cellHeight / 2);
+            cell.text.setText(value);
+            cell.text.setColor(colors.text);
+            
+            cell.background.setVisible(true);
+            cell.text.setVisible(true);
+          } else {
+            // Instantiate new cell
+            const cell = this.createStatCell(
+              currentX,
+              currentY,
+              width,
+              value,
+              colors.background,
+              colors.text,
+              10
+            );
+            this.statsValuesContainer.add([cell.background, cell.text]);
+            this.statCells.push(cell);
+          }
+
+          currentX += width + STATS_TABLE.cellGap;
+          cellIndex++;
+        }
+        currentY += STATS_TABLE.cellHeight + STATS_TABLE.cellGap;
+      }
+      currentY += STATS_TABLE.unitGap ?? 5;
     }
 
-    if (lines.length === 0) {
-      lines.push("NO UNITS REMAINING");
+    // Hide any unused objects inside the object pool
+    for (let i = cellIndex; i < this.statCells.length; i++) {
+      this.statCells[i].background.setVisible(false);
+      this.statCells[i].text.setVisible(false);
     }
 
-    const formattedText = lines.join("\n");
-
-    if (formattedText !== this.lastStatsText) {
-      this.lastStatsText = formattedText;
-      this.statsValuesText.setText(formattedText);
+    // Handle No Units state
+    if (units.length === 0) {
+      if (!this.noUnitsText) {
+        this.noUnitsText = this.scene.add.text(0, 0, "NO UNITS REMAINING", {
+          fontFamily: "monospace",
+          fontSize: `${STATS_TABLE.fontSize}px`,
+          fontStyle: "bold",
+          color: "#ffffff",
+        }).setDepth(10);
+        this.statsValuesContainer.add(this.noUnitsText);
+      }
+      this.noUnitsText.setVisible(true);
+      this.statsContentHeight = this.noUnitsText.height + STATS_TABLE.panelBottomPadding;
+    } else {
+      if (this.noUnitsText) {
+        this.noUnitsText.setVisible(false);
+      }
+      this.statsContentHeight = currentY + STATS_TABLE.panelBottomPadding;
     }
-
-    // Use Phaser's actual rendered text height instead of estimating the
-    // content height from fontSize + lineSpacing. Font metrics can differ
-    // between browsers/devices, and an underestimate leaves the final unit
-    // partially clipped when the list reaches maximum scroll.
-    this.statsContentHeight =
-      Math.ceil(this.statsValuesText.height) +
-      STATS_TABLE.textTopPadding +
-      STATS_TABLE.panelBottomPadding;
 
     this.statsScrollOffsetY = Phaser.Math.Clamp(
       this.statsScrollOffsetY,
@@ -535,7 +596,8 @@ export class BattleUI {
   }
 
   private updateStatsTextPosition(): void {
-    this.statsValuesText.y =
+    // Scroll the container instead of text lines
+    this.statsValuesContainer.y =
       STATS_BODY_TOP +
       STATS_TABLE.textTopPadding -
       this.statsScrollOffsetY;
