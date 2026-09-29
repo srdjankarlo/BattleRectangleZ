@@ -34,7 +34,7 @@ import {
 
 export class BattleScene extends Phaser.Scene {
   private units: Unit[] = [];
-  private simulation = new BattleSimulation();
+  private simulation!: BattleSimulation;
   private battleUI!: BattleUI;
   private battleResultUI!: BattleResultUI;
 
@@ -80,6 +80,9 @@ export class BattleScene extends Phaser.Scene {
 
     this.createWorldCamera();
     this.createArena(worldObjects);
+
+    this.simulation = new BattleSimulation(this);
+    worldObjects.push(this.simulation.projectileLayer);
 
     this.units = createBattleUnits(
       this,

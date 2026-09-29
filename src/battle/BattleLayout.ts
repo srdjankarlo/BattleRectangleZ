@@ -50,7 +50,7 @@ export const STATS_TABLE = {
 
   // Total height of the fixed header area above the scrollable unit list.
   // The header contains 4 rows: 2 top-panel rows + 2 bottom-panel rows.
-  headerHeight: 85,
+  headerHeight: 86,
 
   // Text placement.
   textX: 8,

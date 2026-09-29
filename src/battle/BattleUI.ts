@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import type { Unit } from "../units/Unit";
+import { DamageType } from "../units/Damage";
 import {
   BATTLE_BUTTONS,
   STATS_BODY_HEIGHT,
@@ -433,10 +434,24 @@ export class BattleUI {
       const currentSpeed = Math.hypot(unit.physics.getVelocityX(), unit.physics.getVelocityY());
       const movementType = unit.config.movementType.charAt(0).toUpperCase() + unit.config.movementType.slice(1);
 
+      const rangedDamage = unit.rangedAttack
+        ? unit.rangedAttack.damage.toString()
+        : "-";
+
+      const attackDamage =
+        unit.rangedAttack?.damageType === DamageType.PHYSICAL
+          ? rangedDamage
+          : "-";
+
+      const abilityPower =
+        unit.rangedAttack?.damageType === DamageType.MAGIC
+          ? rangedDamage
+          : "-";
+
       const rowValues = [
-        [`${unit.teamId}`, unitName, `${stats.mass}`, `${currentSpeed.toFixed(0)}`, movementType],
+        [`${unit.teamId}`, unitName, `${stats.mass}`, `${stats.speed}`, movementType],
         [hp, armor, magicResistance, shield, lifeSteal],
-        [stats.bodyDamage.toString(), stats.bodyAttackSpeed.toString(), "-", "-"],
+        [stats.bodyDamage.toString(), stats.bodyAttackSpeed.toString(), attackDamage, abilityPower],
         ["-", "-", "-"],
       ];
 

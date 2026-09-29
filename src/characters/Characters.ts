@@ -1,4 +1,5 @@
 import { MovementType } from "../units/Movement";
+import { DamageType } from "../units/Damage";
 import type { UnitConfig } from "../units/UnitConfig";
 
 // Base icon path root
@@ -38,7 +39,7 @@ export const Characters = {
       healthRegeneration: 5,
       bodyDamage: 25,
       bodyAttackSpeed: 1,
-      bodyAttackRange: 7, // Slightly larger reach due to sheer size
+      bodyAttackRange: 6, // Slightly larger reach due to sheer size
       armor: 40,
       magicResistance: 40,
       maxShield: 0,
@@ -114,7 +115,7 @@ export const Characters = {
       healthRegeneration: 20,
       bodyDamage: 20,
       bodyAttackSpeed: 1.5,
-      bodyAttackRange: 7, // Long necks provide extended melee reach
+      bodyAttackRange: 6, // Long necks provide extended melee reach
       armor: 30,
       magicResistance: 30,
       maxShield: 0,
@@ -438,6 +439,13 @@ export const Characters = {
       bodyDamage: 70,
       bodyAttackSpeed: 4,
       bodyAttackRange: 16, // Standard longbow
+      rangedAttack: {
+        range: 260,
+        damage: 35,
+        attackSpeed: 4,
+        projectileSpeed: 320,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 10,
       magicResistance: 10,
       maxShield: 0,
@@ -456,6 +464,13 @@ export const Characters = {
       bodyDamage: 100,
       bodyAttackSpeed: 2,
       bodyAttackRange: 20, // Max game range
+      rangedAttack: {
+        range: 360,
+        damage: 100,
+        attackSpeed: 1,
+        projectileSpeed: 520,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 10,
       magicResistance: 10,
       maxShield: 0,
@@ -474,6 +489,13 @@ export const Characters = {
       bodyDamage: 80,
       bodyAttackSpeed: 2.5,
       bodyAttackRange: 11, // Medium throwing distance
+      rangedAttack: {
+        range: 240,
+        damage: 80,
+        attackSpeed: 1.5,
+        projectileSpeed: 260,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 15,
       magicResistance: 10,
       maxShield: 0,
@@ -492,6 +514,13 @@ export const Characters = {
       bodyDamage: 60,
       bodyAttackSpeed: 4,
       bodyAttackRange: 14,
+      rangedAttack: {
+        range: 280,
+        damage: 60,
+        attackSpeed: 4,
+        projectileSpeed: 430,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 10,
       magicResistance: 10,
       maxShield: 0,
@@ -510,6 +539,13 @@ export const Characters = {
       bodyDamage: 40,
       bodyAttackSpeed: 5,
       bodyAttackRange: 10, // Close air support, aggressive
+      rangedAttack: {
+        range: 250,
+        damage: 40,
+        attackSpeed: 5,
+        projectileSpeed: 460,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 15,
       magicResistance: 20,
       maxShield: 0,
@@ -528,6 +564,13 @@ export const Characters = {
       bodyDamage: 70,
       bodyAttackSpeed: 3,
       bodyAttackRange: 12,
+      rangedAttack: {
+        range: 200,
+        damage: 70,
+        attackSpeed: 3,
+        projectileSpeed: 360,
+        damageType: DamageType.PHYSICAL,
+      },
       armor: 20,
       magicResistance: 10,
       maxShield: 0,
@@ -550,6 +593,13 @@ export const Characters = {
       bodyDamage: 60,
       bodyAttackSpeed: 2,
       bodyAttackRange: 12,
+      rangedAttack: {
+        range: 260,
+        damage: 60,
+        attackSpeed: 2,
+        projectileSpeed: 250,
+        damageType: DamageType.MAGIC,
+      },
       armor: 20,
       magicResistance: 40,
       maxShield: 0,
@@ -568,6 +618,13 @@ export const Characters = {
       bodyDamage: 50,
       bodyAttackSpeed: 2.5,
       bodyAttackRange: 11,
+      rangedAttack: {
+        range: 240,
+        damage: 50,
+        attackSpeed: 2.5,
+        projectileSpeed: 270,
+        damageType: DamageType.MAGIC,
+      },
       armor: 15,
       magicResistance: 30,
       maxShield: 40,
@@ -587,6 +644,13 @@ export const Characters = {
       bodyDamage: 60,
       bodyAttackSpeed: 2,
       bodyAttackRange: 16,
+      rangedAttack: {
+        range: 280,
+        damage: 60,
+        attackSpeed: 2,
+        projectileSpeed: 240,
+        damageType: DamageType.MAGIC,
+      },
       armor: 10,
       magicResistance: 40,
       maxShield: 20,
@@ -606,6 +670,13 @@ export const Characters = {
       bodyDamage: 50,
       bodyAttackSpeed: 2,
       bodyAttackRange: 14,
+      rangedAttack: {
+        range: 260,
+        damage: 50,
+        attackSpeed: 2,
+        projectileSpeed: 250,
+        damageType: DamageType.MAGIC,
+      },
       armor: 10,
       magicResistance: 50,
       maxShield: 40,
@@ -625,6 +696,13 @@ export const Characters = {
       bodyDamage: 70,
       bodyAttackSpeed: 1.5,
       bodyAttackRange: 18, // Longest caster range
+      rangedAttack: {
+        range: 320,
+        damage: 70,
+        attackSpeed: 1.5,
+        projectileSpeed: 290,
+        damageType: DamageType.MAGIC,
+      },
       armor: 10,
       magicResistance: 50,
       maxShield: 50,
@@ -644,6 +722,13 @@ export const Characters = {
       bodyDamage: 80,
       bodyAttackSpeed: 2,
       bodyAttackRange: 11, // Closer range for high burst
+      rangedAttack: {
+        range: 250,
+        damage: 80,
+        attackSpeed: 2,
+        projectileSpeed: 260,
+        damageType: DamageType.MAGIC,
+      },
       armor: 15,
       magicResistance: 30,
       maxShield: 20,
@@ -663,6 +748,13 @@ export const Characters = {
       bodyDamage: 40,
       bodyAttackSpeed: 3,
       bodyAttackRange: 10, // Mid-to-short scream distance
+      rangedAttack: {
+        range: 300,
+        damage: 40,
+        attackSpeed: 3,
+        projectileSpeed: 310,
+        damageType: DamageType.MAGIC,
+      },
       armor: 10,
       magicResistance: 60,
       maxShield: 30,
@@ -799,7 +891,7 @@ export const Characters = {
       healthRegeneration: 15,
       bodyDamage: 25,
       bodyAttackSpeed: 2,
-      bodyAttackRange: 12, // Mid-line protection
+      bodyAttackRange: 6,
       armor: 20,
       magicResistance: 40,
       maxShield: 50,

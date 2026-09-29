@@ -6,6 +6,7 @@ import {
   DEFAULT_BODY_ATTACK_RANGE,
 } from "./Combat";
 import { Health } from "./Health";
+import { RangedAttack } from "./RangedAttack";
 import { Physics } from "./Physics";
 import type { UnitConfig } from "./UnitConfig";
 import { DamageType } from "./Damage";
@@ -41,6 +42,7 @@ export class Unit {
   public readonly combat: Combat;
   public readonly health: Health;
   public readonly physics: Physics;
+  public readonly rangedAttack: RangedAttack | null;
 
   constructor(
     scene: Phaser.Scene,
@@ -71,6 +73,10 @@ export class Unit {
       stats.lifeSteal ?? 0,
       stats.bodyAttackRange ?? DEFAULT_BODY_ATTACK_RANGE,
     );
+
+    this.rangedAttack = stats.rangedAttack
+      ? new RangedAttack(stats.rangedAttack)
+      : null;
 
     this.physics = new Physics(
       x,
@@ -166,6 +172,7 @@ export class Unit {
 
   update(deltaSeconds: number): void {
     this.combat.update(deltaSeconds);
+    this.rangedAttack?.update(deltaSeconds);
 
     if (!this.isAlive()) {
       return;
@@ -272,23 +279,6 @@ export class Unit {
   // DAMAGE & DEATH
   // --------------------------------------------------
 
-  private getBodyAttackDamage(
-    target: Unit,
-  ): number {
-    if (
-      !this.combat.canDealBodyDamage() ||
-      !target.isAlive()
-    ) {
-      return 0;
-    }
-
-    return this.combat.calculateDamage(
-      this.combat.bodyAttackDamage,
-      DamageType.PHYSICAL,
-      target.config.stats,
-    );
-  }
-
   public resolveCollision(
     other: Unit,
   ): void {
@@ -315,57 +305,53 @@ export class Unit {
         other.combat.bodyAttackRange,
       );
 
+    const thisCanAttack =
+      thisInAttackRange &&
+      this.combat.canDealBodyDamage();
+
+    const otherCanAttack =
+      otherInAttackRange &&
+      other.combat.canDealBodyDamage();
+
     if (
       this.teamId === other.teamId ||
-      (!thisInAttackRange && !otherInAttackRange)
+      (!thisCanAttack && !otherCanAttack)
     ) {
       return;
     }
 
-    // Calculate both attacks BEFORE applying either one.
-    //
-    // This keeps the current behavior where both units can
-    // hit each other during the same collision, even if one
-    // of the attacks is lethal.
-    const thisDamage = thisInAttackRange
-      ? this.getBodyAttackDamage(other)
-      : 0;
-
-    const otherDamage = otherInAttackRange
-      ? other.getBodyAttackDamage(this)
-      : 0;
-
-    if (thisDamage > 0) {
-      const result = other.takeDamage(thisDamage);
-      const healing = this.combat.calculateLifeStealHealing(
-        result.healthDamage,
+    // Check both attack opportunities before applying either attack so the
+    // result does not depend on which unit happens to be processed first.
+    if (thisCanAttack) {
+      other.receiveDamage(
+        this.combat.bodyAttackDamage,
+        DamageType.PHYSICAL,
+        this,
       );
-
-      if (healing > 0) {
-        this.health.heal(healing);
-        this.updateHealthBar();
-      }
-
       this.combat.startBodyDamageCooldown();
     }
 
-    if (otherDamage > 0) {
-      const result = this.takeDamage(otherDamage);
-      const healing = other.combat.calculateLifeStealHealing(
-        result.healthDamage,
+    if (otherCanAttack) {
+      this.receiveDamage(
+        other.combat.bodyAttackDamage,
+        DamageType.PHYSICAL,
+        other,
       );
-
-      if (healing > 0) {
-        other.health.heal(healing);
-        other.updateHealthBar();
-      }
-
       other.combat.startBodyDamageCooldown();
     }
   }
 
-  private takeDamage(
-    amount: number,
+  /**
+   * Applies raw incoming damage, handles resistance, health/shield damage,
+   * death, and lifesteal for the attacking unit.
+   *
+   * Keeping this in Unit gives body attacks and projectiles exactly the same
+   * damage pipeline instead of duplicating combat rules in two systems.
+   */
+  public receiveDamage(
+    rawDamage: number,
+    damageType: DamageType,
+    attacker?: Unit,
   ): DamageResult {
     if (!this.isAlive()) {
       return {
@@ -375,18 +361,38 @@ export class Unit {
       };
     }
 
-    const result = this.health.takeDamage(
-      amount,
-    );
+    const finalDamage = attacker
+      ? attacker.combat.calculateDamage(
+          rawDamage,
+          damageType,
+          this.config.stats,
+        )
+      : rawDamage;
 
-    // The health bar represents HP, not shield. Do not update it
-    // when damage is fully absorbed by the shield.
+    const result = this.health.takeDamage(finalDamage);
+
+    // The health bar represents HP, not shield. Do not update it when damage
+    // is fully absorbed by the shield.
     if (result.healthDamage > 0) {
       this.updateHealthBar();
     }
 
     if (!this.isAlive()) {
       this.die();
+    }
+
+    if (
+      attacker &&
+      result.healthDamage > 0
+    ) {
+      const healing = attacker.combat.calculateLifeStealHealing(
+        result.healthDamage,
+      );
+
+      if (healing > 0) {
+        attacker.health.heal(healing);
+        attacker.updateHealthBar();
+      }
     }
 
     return result;
