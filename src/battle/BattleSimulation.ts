@@ -6,21 +6,22 @@ const MAX_SIMULATION_DELTA_SECONDS = 1 / 30;
  * Runs the simulation step for the active battle.
  *
  * The scene owns the units. This class only owns the simulation rules:
- * unit updates + unit collision broad phase + collision resolution.
+ * unit updates + interaction broad phase + physical collision/combat checks.
  */
 export class BattleSimulation {
   private readonly grid = new Map<number, number[]>();
   private readonly activeCellKeys: number[] = [];
 
-  private collisionCellSize = 1;
+  private interactionCellSize = 1;
 
   /**
-   * Call once after units are created. Unit dimensions are static during
-   * a battle, so the broad-phase cell size does not need recalculating
-   * every frame.
+   * Call once after units are created. Unit dimensions and attack ranges are
+   * static during a battle, so the broad-phase cell size does not need
+   * recalculating every frame.
    */
   initialize(units: readonly Unit[]): void {
     let maxUnitDimension = 1;
+    let maxBodyAttackRange = 0;
 
     for (const unit of units) {
       maxUnitDimension = Math.max(
@@ -28,12 +29,17 @@ export class BattleSimulation {
         unit.physics.width,
         unit.physics.height,
       );
+
+      maxBodyAttackRange = Math.max(
+        maxBodyAttackRange,
+        unit.combat.bodyAttackRange,
+      );
     }
 
-    // Two colliding rectangles can have centers at most one max dimension
-    // apart. Using 2x that value keeps colliding units in the same or an
-    // immediately neighboring cell.
-    this.collisionCellSize = maxUnitDimension * 2;
+    // The broad phase now covers both physical collision and body-attack
+    // range. This keeps interacting units in the same or neighboring cells.
+    this.interactionCellSize =
+      (maxUnitDimension + maxBodyAttackRange) * 2;
 
     this.clearGrid();
   }
@@ -73,7 +79,7 @@ export class BattleSimulation {
 
     this.buildGrid(units);
 
-    const cellSize = this.collisionCellSize;
+    const cellSize = this.interactionCellSize;
 
     // Each unit checks its own cell and the eight neighboring cells.
     // Pair indices enforce i < j, so no Set/string allocation is needed
@@ -121,7 +127,7 @@ export class BattleSimulation {
 
     this.activeCellKeys.length = 0;
 
-    const cellSize = this.collisionCellSize;
+    const cellSize = this.interactionCellSize;
 
     for (let i = 0; i < units.length; i++) {
       const unit = units[i];

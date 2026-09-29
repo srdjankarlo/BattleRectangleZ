@@ -501,8 +501,9 @@ export class BattleUI {
         }).setDepth(10);
         this.statsTextContainer.add(this.noUnitsText);
       }
-      this.noUnitsText.setVisible(true);
-      this.statsContentHeight = this.noUnitsText.height + STATS_TABLE.panelBottomPadding;
+      const noUnitsText = this.noUnitsText;
+      noUnitsText.setVisible(true);
+      this.statsContentHeight = noUnitsText.height + STATS_TABLE.panelBottomPadding;
     } else {
       if (this.noUnitsText) {
         this.noUnitsText.setVisible(false);

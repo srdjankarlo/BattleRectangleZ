@@ -125,6 +125,34 @@ export class Physics {
 
   // RECTANGLE COLLISION
 
+  /**
+   * Returns true when the other unit's rectangle has entered this unit's
+   * body-attack rectangle.
+   *
+   * The range is added only to this unit, so the check is directional. This
+   * allows a future ranged attacker to hit from farther away than its target
+   * can hit back.
+   */
+  isWithinAttackRange(
+    other: Physics,
+    attackRange: number,
+  ): boolean {
+    const dx = Math.abs(other.x - this.x);
+    const dy = Math.abs(other.y - this.y);
+
+    const maxAllowedX =
+      this.halfWidth +
+      other.halfWidth +
+      attackRange;
+
+    const maxAllowedY =
+      this.halfHeight +
+      other.halfHeight +
+      attackRange;
+
+    return dx <= maxAllowedX && dy <= maxAllowedY;
+  }
+
   resolveCollision(
     other: Physics,
   ): boolean {

@@ -6,8 +6,11 @@ import {
   DamageType,
 } from "./Damage";
 
+export const DEFAULT_BODY_ATTACK_RANGE = 6;
+
 export class Combat {
   public readonly bodyAttackDamage: number;
+  public readonly bodyAttackRange: number;
   private readonly bodyDamageCooldownDuration: number;
   private bodyDamageCooldown = 0;
   public readonly lifeSteal: number;
@@ -16,6 +19,7 @@ export class Combat {
     bodyAttackDamage: number,
     bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are glued one to another or have multiple bumps in 1s
     lifeSteal = 0,
+    bodyAttackRange = DEFAULT_BODY_ATTACK_RANGE,
   ) {
     if (bodyAttackDamage < 0) {
       throw new Error("Body attack damage cannot be negative.",);
@@ -29,9 +33,14 @@ export class Combat {
       throw new Error("Life steal cannot be negative.",);
     }
 
+    if (bodyAttackRange < 0) {
+      throw new Error("Body attack range cannot be negative.",);
+    }
+
     this.bodyAttackDamage = bodyAttackDamage;
     this.bodyDamageCooldownDuration = 1 / bodyAttackSpeed;
     this.lifeSteal = lifeSteal;
+    this.bodyAttackRange = bodyAttackRange;
   }
 
   // --------------------------------------------------

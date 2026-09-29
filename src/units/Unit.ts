@@ -1,7 +1,10 @@
 import Phaser from "phaser";
 
 import { Movement } from "./Movement";
-import { Combat } from "./Combat";
+import {
+  Combat,
+  DEFAULT_BODY_ATTACK_RANGE,
+} from "./Combat";
 import { Health } from "./Health";
 import { Physics } from "./Physics";
 import type { UnitConfig } from "./UnitConfig";
@@ -13,6 +16,7 @@ export class Unit {
   // VISUALS
   // --------------------------------------------------
   public readonly sprite: Phaser.GameObjects.Image;
+  public readonly bodyAttackRangeIndicator: Phaser.GameObjects.Rectangle;
   public readonly healthBarBg: Phaser.GameObjects.Rectangle;
   public readonly healthBarFill: Phaser.GameObjects.Rectangle;
 
@@ -65,6 +69,7 @@ export class Unit {
       stats.bodyDamage,
       stats.bodyAttackSpeed,
       stats.lifeSteal ?? 0,
+      stats.bodyAttackRange ?? DEFAULT_BODY_ATTACK_RANGE,
     );
 
     this.physics = new Physics(
@@ -99,6 +104,21 @@ export class Unit {
     );
 
     this.sprite.setDepth(10);
+
+    // The red rectangle shows the exact body-attack area. It extends beyond
+    // the icon, so an enemy can enter attack range before physical collision.
+    this.bodyAttackRangeIndicator = scene.add.rectangle(
+      x,
+      y,
+      stats.width + this.combat.bodyAttackRange * 2,
+      stats.height + this.combat.bodyAttackRange * 2,
+      0x000000,
+      0,
+    );
+
+    this.bodyAttackRangeIndicator
+      .setStrokeStyle(2, 0xef4444, 0.85)
+      .setDepth(8);
 
     // Health bar geometry never changes during a battle,
     // so cache the values rather than recalculating them every frame.
@@ -178,6 +198,9 @@ export class Unit {
 
     this.sprite.x = x;
     this.sprite.y = y;
+
+    this.bodyAttackRangeIndicator.x = x;
+    this.bodyAttackRangeIndicator.y = y;
 
     this.healthBarBg.x = x;
     this.healthBarBg.y =
@@ -276,16 +299,25 @@ export class Unit {
       return;
     }
 
-    // Physics handles only physical collision detection
-    // and velocity/position resolution.
-    const collisionOccurred =
-      this.physics.resolveCollision(
+    // Resolve physical collision separately from combat range. A unit can
+    // therefore attack before its icon physically touches the enemy.
+    this.physics.resolveCollision(other.physics);
+
+    const thisInAttackRange =
+      this.physics.isWithinAttackRange(
         other.physics,
+        this.combat.bodyAttackRange,
+      );
+
+    const otherInAttackRange =
+      other.physics.isWithinAttackRange(
+        this.physics,
+        other.combat.bodyAttackRange,
       );
 
     if (
-      !collisionOccurred ||
-      this.teamId === other.teamId
+      this.teamId === other.teamId ||
+      (!thisInAttackRange && !otherInAttackRange)
     ) {
       return;
     }
@@ -295,11 +327,13 @@ export class Unit {
     // This keeps the current behavior where both units can
     // hit each other during the same collision, even if one
     // of the attacks is lethal.
-    const thisDamage =
-      this.getBodyAttackDamage(other);
+    const thisDamage = thisInAttackRange
+      ? this.getBodyAttackDamage(other)
+      : 0;
 
-    const otherDamage =
-      other.getBodyAttackDamage(this);
+    const otherDamage = otherInAttackRange
+      ? other.getBodyAttackDamage(this)
+      : 0;
 
     if (thisDamage > 0) {
       const result = other.takeDamage(thisDamage);
@@ -360,6 +394,7 @@ export class Unit {
 
   private die(): void {
     this.sprite.setVisible(false);
+    this.bodyAttackRangeIndicator.setVisible(false);
     this.healthBarBg.setVisible(false);
     this.healthBarFill.setVisible(false);
   }
@@ -398,6 +433,7 @@ export class Unit {
 
   public destroy(): void {
     this.sprite.destroy();
+    this.bodyAttackRangeIndicator.destroy();
     this.healthBarBg.destroy();
     this.healthBarFill.destroy();
   }

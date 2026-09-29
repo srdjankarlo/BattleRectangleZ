@@ -89,6 +89,7 @@ export class BattleScene extends Phaser.Scene {
     for (const unit of this.units) {
       worldObjects.push(
         unit.sprite,
+        unit.bodyAttackRangeIndicator,
         unit.healthBarBg,
         unit.healthBarFill,
       );

@@ -16,6 +16,10 @@ export interface UnitStats {
   bodyDamage: number;
   bodyAttackSpeed: number;
 
+  // Distance outside the unit's physical rectangle at which body attacks can
+  // connect. Omitted means the default melee range is used.
+  bodyAttackRange?: number;
+
   // Optional defensive stats. Omitted means the unit has no resistance.
   armor?: number;
   magicResistance?: number;
