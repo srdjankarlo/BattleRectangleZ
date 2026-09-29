@@ -57,7 +57,7 @@ export const STATS_TABLE = {
   textTopPadding: 4,
 
   // Default width of one bottom-panel stat cell.
-  // Used by HP/ARM/MR/SHLD and BD/AD/AP/MOVE.
+  // Used as the fallback width when a row does not provide its own width.
   columnWidth: 16,
 
   cellHeight: 20,
@@ -87,15 +87,15 @@ export const STATS_TABLE = {
 // pixel widths instead of character counts
 export const STATS_ROW_COLUMN_WIDTHS = [
   [40, 100, 40, 30, 60],
-  [100, 45, 45, 40, 40],
-  [67, 67, 67, 67],
+  [100, 45, 45, 50, 40],
+  [67, 67, 67],
   [90, 90, 90],
 ] as const;
 
 export const STATS_HEADER_ROWS = [
   ["TEAM", "UNIT", "MASS", "MS", "MOVE"],
   ["HP / REG", "ARM", "MR", "SHL", "LS"],
-  ["BD", "BAS", "AD", "AP"],
+  ["AD", "AP", "AS"],
   ["PASS", "ABIL", "ULT"],
 ] as const;
 
@@ -111,10 +111,10 @@ export const STAT_COLORS = {
   SHL: { background: 0xd9b300, text: "#141414" },
   LS: { background: 0x7a1111, text: "#ffb347" },
 
-  BD: { background: 0xd66b00, text: "#7a0000" },
-  BAS: { background: 0x4b2a73, text: "#e7c6ff" },
   AD: { background: 0xf0d4d4, text: "#b00020" },
   AP: { background: 0x123a5a, text: "#7ddcff" },
+  // AS: { background: 0xd66b00, text: "#7a0000" },
+  AS: { background: 0x4b2a73, text: "#e7c6ff" },
   MOVE: { background: 0x234a7a, text: "#cde7ff" },
 
   PASS: { background: 0x454550, text: "#f2f2f2" },

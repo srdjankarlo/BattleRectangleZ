@@ -25,4 +25,5 @@ export interface BattleSetup {
   arenaWidth: number;
   arenaHeight: number;
   teams: TeamSetup[];
+  aiEnabled: boolean;
 }

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import type { BattleSetup } from "../GameSetup";
+import type { UnitConfig } from "../units/UnitConfig";
 import {
   getActiveBattleSetup,
 } from "./BattleSession";
@@ -53,13 +54,22 @@ export class BattleScene extends Phaser.Scene {
   preload(): void {
     // Character icons are keyed by their full asset path in Characters.ts.
     for (const charKey of Object.keys(Characters)) {
-      const charConfig =
+      const charConfig: UnitConfig =
         Characters[charKey as keyof typeof Characters];
 
       if (charConfig.icon) {
+        this.load.image(charConfig.icon, charConfig.icon);
+      }
+
+      const meleeSprite = charConfig.stats.meleeAttack?.sprite;
+      if (meleeSprite) {
+        this.load.image(meleeSprite, meleeSprite);
+      }
+
+      if (charConfig.stats.rangedAttack?.projectileSprite) {
         this.load.image(
-          charConfig.icon,
-          charConfig.icon,
+          charConfig.stats.rangedAttack.projectileSprite,
+          charConfig.stats.rangedAttack.projectileSprite,
         );
       }
     }
@@ -92,7 +102,7 @@ export class BattleScene extends Phaser.Scene {
     for (const unit of this.units) {
       worldObjects.push(
         unit.sprite,
-        unit.bodyAttackRangeIndicator,
+        ...(unit.meleeWeapon ? [unit.meleeWeapon] : []),
         unit.healthBarBg,
         unit.healthBarFill,
       );

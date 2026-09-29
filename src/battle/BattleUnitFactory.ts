@@ -99,6 +99,7 @@ function createUnitFromSelection(
     setup.arenaHeight,
     teamId,
     instanceNumber,
+	  setup.aiEnabled,
   );
 }
 

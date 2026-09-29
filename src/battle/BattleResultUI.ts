@@ -180,7 +180,7 @@ export class BattleResultUI {
     }
 
     const nonResultObjects = this.scene.children.list.filter(
-      (object) => !resultObjects.includes(object),
+      (object: Phaser.GameObjects.GameObject) => !resultObjects.includes(object),
     );
 
     resultCamera.ignore(nonResultObjects);

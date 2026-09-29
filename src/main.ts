@@ -2,6 +2,7 @@ import "./style.css";
 
 import { BattleGame } from "./battle/BattleGame";
 import { GameMenu } from "./GameMenu";
+import { BalanceSimulator } from "./battle/BalanceSimulator";
 
 // --------------------------------------------------
 // DOM ELEMENTS
@@ -27,6 +28,7 @@ if (!menuRoot || !gameContainer) {
 // --------------------------------------------------
 
 let menu: GameMenu;
+const balanceSimulator = new BalanceSimulator();
 
 const battleGame = new BattleGame(
   gameContainer,
@@ -38,5 +40,8 @@ menu = new GameMenu(
   (setup) => {
     menu.hide();
     battleGame.startBattle(setup);
+  },
+  () => {
+    balanceSimulator.downloadReport();
   },
 );

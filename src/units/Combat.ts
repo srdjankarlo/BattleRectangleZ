@@ -1,72 +1,20 @@
-import type {
-  UnitStats,
-} from "./Stats";
+import type { UnitStats } from "./Stats";
+import { DamageType } from "./Damage";
 
-import {
-  DamageType,
-} from "./Damage";
-
-export const DEFAULT_BODY_ATTACK_RANGE = 6;
-
+/**
+ * Shared damage rules used by every attack type.
+ *
+ * Attack cooldowns belong to MeleeAttack/RangedAttack, not to Combat.
+ */
 export class Combat {
-  public readonly bodyAttackDamage: number;
-  public readonly bodyAttackRange: number;
-  private readonly bodyDamageCooldownDuration: number;
-  private bodyDamageCooldown = 0;
   public readonly lifeSteal: number;
 
-  constructor(
-    bodyAttackDamage: number,
-    bodyAttackSpeed: number, // like attack speed, to prevent units from constantly dealing damage if they are glued one to another or have multiple bumps in 1s
-    lifeSteal = 0,
-    bodyAttackRange = DEFAULT_BODY_ATTACK_RANGE,
-  ) {
-    if (bodyAttackDamage < 0) {
-      throw new Error("Body attack damage cannot be negative.",);
-    }
-
-    if (bodyAttackSpeed <= 0) {
-      throw new Error("Body attack speed must be greater than zero.",);
-    }
-
+  constructor(lifeSteal = 0) {
     if (lifeSteal < 0) {
-      throw new Error("Life steal cannot be negative.",);
+      throw new Error("Life steal cannot be negative.");
     }
 
-    if (bodyAttackRange < 0) {
-      throw new Error("Body attack range cannot be negative.",);
-    }
-
-    this.bodyAttackDamage = bodyAttackDamage;
-    this.bodyDamageCooldownDuration = 1 / bodyAttackSpeed;
     this.lifeSteal = lifeSteal;
-    this.bodyAttackRange = bodyAttackRange;
-  }
-
-  // --------------------------------------------------
-  // UPDATE
-  // --------------------------------------------------
-
-  update(deltaSeconds: number): void {
-    if (this.bodyDamageCooldown > 0) {
-      this.bodyDamageCooldown -= deltaSeconds;
-
-      if (this.bodyDamageCooldown < 0) {
-        this.bodyDamageCooldown = 0;
-      }
-    }
-  }
-
-  // --------------------------------------------------
-  // BODY ATTACK
-  // --------------------------------------------------
-
-  canDealBodyDamage(): boolean {
-    return this.bodyDamageCooldown <= 0;
-  }
-
-  startBodyDamageCooldown(): void {
-    this.bodyDamageCooldown = this.bodyDamageCooldownDuration;
   }
 
   calculateLifeStealHealing(healthDamage: number): number {
@@ -77,21 +25,8 @@ export class Combat {
     return healthDamage * (this.lifeSteal / 100);
   }
 
-  // --------------------------------------------------
-  // DAMAGE CALCULATION
-  // --------------------------------------------------
-
   /**
-   * Calculates how much damage gets through the
-   * target's armor or magic resistance.
-   *
-   * This is a prototype formula:
-   *
-   * finalDamage =
-   * rawDamage * 100 / (100 + resistance)
-   *
-   * It means increasing resistance always reduces
-   * incoming damage, but never makes damage reach zero.
+   * Prototype resistance formula shared by melee and ranged attacks.
    */
   calculateDamage(
     rawDamage: number,
@@ -99,9 +34,7 @@ export class Combat {
     targetStats: UnitStats,
   ): number {
     if (rawDamage < 0) {
-      throw new Error(
-        "Raw damage cannot be negative.",
-      );
+      throw new Error("Raw damage cannot be negative.");
     }
 
     let resistance = 0;
@@ -110,14 +43,11 @@ export class Combat {
       case DamageType.PHYSICAL:
         resistance = targetStats.armor ?? 0;
         break;
-
       case DamageType.MAGIC:
         resistance = targetStats.magicResistance ?? 0;
         break;
     }
 
-    const damageMultiplier = 100 / (100 + resistance);
-
-    return rawDamage * damageMultiplier;
+    return rawDamage * (100 / (100 + resistance));
   }
 }

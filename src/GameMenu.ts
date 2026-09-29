@@ -58,12 +58,14 @@ const MAX_TEAMS = 8;
 export class GameMenu {
   private readonly root: HTMLElement;
   private readonly onStart: (setup: BattleSetup) => void;
+  private readonly onRunBalanceSimulation: () => void;
 
   // These values are the actual menu state.
   // Rendering HTML must never reset them.
   private mode: GameMode = "simulation";
   private arenaId = "tiny";
   private teamCount = 2;
+  private aiEnabled = true;
 
   private teams: TeamState[] = [
     {
@@ -79,9 +81,11 @@ export class GameMenu {
   constructor(
     root: HTMLElement,
     onStart: (setup: BattleSetup) => void,
+    onRunBalanceSimulation: () => void,
   ) {
     this.root = root;
     this.onStart = onStart;
+    this.onRunBalanceSimulation = onRunBalanceSimulation;
 
     this.root.classList.add("battlerectanglez-menu-root");
     this.render();
@@ -129,6 +133,20 @@ export class GameMenu {
               <div id="bb-arena-options" class="bb-arena-options"></div>
             </section>
 
+            <section class="bb-setting-block bb-ai-section">
+              <div class="bb-setting-label">UNIT AI</div>
+              <button
+                id="bb-ai-toggle"
+                class="bb-ai-toggle ${this.aiEnabled ? "enabled" : "disabled"}"
+                type="button"
+                aria-pressed="${this.aiEnabled}"
+              >
+                <span class="bb-ai-toggle-label">AUTONOMOUS AI</span>
+                <strong>${this.aiEnabled ? "ON" : "OFF"}</strong>
+              </button>
+              <div class="bb-setting-hint">AI controls targeting, movement and attacks.</div>
+            </section>
+
             <section class="bb-setting-block bb-team-count-section">
               <div class="bb-setting-label">NUMBER OF TEAMS</div>
               <div class="bb-number-control">
@@ -172,10 +190,15 @@ export class GameMenu {
           <div id="bb-teams" class="bb-teams"></div>
 
           <div class="bb-actions">
-            <button id="bb-start" class="bb-primary-button" type="button">
-              <span>START BATTLE</span>
-              <span class="bb-button-arrow">→</span>
-            </button>
+            <div class="bb-action-stack">
+              <button id="bb-start" class="bb-primary-button" type="button">
+                <span>START BATTLE</span>
+                <span class="bb-button-arrow">→</span>
+              </button>
+              <button id="bb-simulate-report" class="bb-secondary-button" type="button">
+                GENERATE BALANCE REPORT
+              </button>
+            </div>
           </div>
         </section>
 
@@ -261,6 +284,13 @@ export class GameMenu {
   }
 
   private syncTopControls(): void {
+    const aiToggle =
+      this.getElement<HTMLButtonElement>("#bb-ai-toggle");
+    aiToggle.classList.toggle("enabled", this.aiEnabled);
+    aiToggle.classList.toggle("disabled", !this.aiEnabled);
+    aiToggle.setAttribute("aria-pressed", String(this.aiEnabled));
+    aiToggle.querySelector("strong")!.textContent = this.aiEnabled ? "ON" : "OFF";
+
     const teamCountInput =
       this.getElement<HTMLInputElement>("#bb-team-count");
 
@@ -409,6 +439,14 @@ export class GameMenu {
       this.setTeamCount(this.teamCount + 1);
     });
 
+    this.getElement<HTMLButtonElement>("#bb-ai-toggle").addEventListener(
+      "click",
+      () => {
+        this.aiEnabled = !this.aiEnabled;
+        this.syncTopControls();
+      },
+    );
+
     input.addEventListener("change", () => {
       const requested = Number(input.value);
 
@@ -424,6 +462,13 @@ export class GameMenu {
       "click",
       () => {
         this.startBattle();
+      },
+    );
+
+    this.getElement<HTMLButtonElement>("#bb-simulate-report").addEventListener(
+      "click",
+      () => {
+        this.onRunBalanceSimulation();
       },
     );
   }
@@ -682,6 +727,7 @@ export class GameMenu {
           this.cloneSelection(unit),
         ),
       })),
+      aiEnabled: this.aiEnabled,
     };
 
     this.onStart(setup);

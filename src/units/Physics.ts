@@ -126,14 +126,11 @@ export class Physics {
   // RECTANGLE COLLISION
 
   /**
-   * Returns true when the other unit's rectangle has entered this unit's
-   * body-attack rectangle.
-   *
-   * The range is added only to this unit, so the check is directional. This
-   * allows a future ranged attacker to hit from farther away than its target
-   * can hit back.
+   * Returns true when the other unit has entered the attacker's rectangular
+   * melee reach. The range is added only to this unit, so the check is
+   * directional.
    */
-  isWithinAttackRange(
+  isWithinRange(
     other: Physics,
     attackRange: number,
   ): boolean {

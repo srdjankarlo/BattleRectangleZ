@@ -1,11 +1,21 @@
 /**
  * Statistics that describe the capabilities of a unit.
  *
- * These are mostly permanent characteristics of a
- * character. Current HP, current shield, velocity,
- * position, etc. belong to the unit's runtime state.
+ * These are mostly permanent characteristics of a character. Current HP,
+ * current shield, velocity, position, cooldowns, etc. belong to runtime state.
  */
 import type { DamageType } from "./Damage";
+
+export type ProjectileBehavior = "homing" | "straight";
+
+export interface MeleeAttackStats {
+  range: number;
+  damage: number;
+  attackSpeed: number;
+  damageType: DamageType;
+  /** Optional PNG/SVG weapon sprite. Omitted for the default rectangle. */
+  sprite?: string;
+}
 
 export interface RangedAttackStats {
   range: number;
@@ -13,35 +23,32 @@ export interface RangedAttackStats {
   attackSpeed: number;
   projectileSpeed: number;
   damageType: DamageType;
+  /** Homing follows the target. Straight keeps the firing direction. */
+  projectileBehavior?: ProjectileBehavior;
+  /** Optional projectile image. Omitted for the default simple projectile. */
+  projectileSprite?: string;
 }
 
 export interface UnitStats {
   width: number;
   height: number;
-
   speed: number;
   mass: number;
   maxHealth: number;
-  
-  bodyDamage: number;
-  bodyAttackSpeed: number;
 
-  // Distance outside the unit's physical rectangle at which body attacks can
-  // connect. Omitted means the default melee range is used.
-  bodyAttackRange?: number;
-
-  // Optional ranged attack. Omitted means the unit has no ranged attack.
+  meleeAttack?: MeleeAttackStats;
   rangedAttack?: RangedAttackStats;
 
-  // Optional defensive stats. Omitted means the unit has no resistance.
+  // Optional defensive stats. Omitted means the value is 0.
   armor?: number;
   magicResistance?: number;
 
   // HP regenerated per second. Omitted means 0 HP/sec.
   healthRegeneration?: number;
 
-  // ToDo
+  // Percentage of actual HP damage dealt that is returned as healing.
   lifeSteal?: number;
 
   maxShield?: number;
 }
+

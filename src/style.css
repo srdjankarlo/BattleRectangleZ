@@ -443,10 +443,69 @@ select:focus-visible {
   cursor: pointer;
 }
 
+.bb-ai-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #f5f3ff;
+  cursor: pointer;
+  text-align: left;
+  transition: 140ms ease;
+}
+
+.bb-ai-toggle:hover {
+  border-color: rgba(164, 143, 255, 0.42);
+  background: rgba(125, 97, 255, 0.08);
+}
+
+.bb-ai-toggle strong {
+  min-width: 44px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.bb-ai-toggle.enabled {
+  border-color: rgba(74, 222, 128, 0.42);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.bb-ai-toggle.enabled strong {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.bb-ai-toggle.disabled strong {
+  color: rgba(245, 243, 255, 0.46);
+}
+
+.bb-ai-toggle-label {
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+}
+
 .bb-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 21px;
+}
+
+.bb-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 205px;
 }
 
 .bb-primary-button {
@@ -466,6 +525,20 @@ select:focus-visible {
   letter-spacing: 0.11em;
   cursor: pointer;
   box-shadow: 0 15px 35px rgba(103, 77, 255, 0.24);
+}
+
+
+.bb-secondary-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(169, 150, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(111, 83, 255, 0.09);
+  color: rgba(245, 243, 255, 0.82);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
 }
 
 .bb-footer {
@@ -550,12 +623,34 @@ select:focus-visible {
     justify-content: stretch;
   }
 
-  .bb-primary-button {
+  .bb-action-stack {
     width: 100%;
+  }
+
+  .bb-primary-button,
+  .bb-secondary-button {
+    width: 100%;
+  }
+
+  .bb-primary-button {
     min-height: 56px;
   }
 
-  .bb-footer {
+  
+.bb-secondary-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(169, 150, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(111, 83, 255, 0.09);
+  color: rgba(245, 243, 255, 0.82);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.bb-footer {
     flex-direction: column;
     gap: 6px;
     text-align: center;

@@ -42,10 +42,11 @@ const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
   SHL: "SHL",
   LS: "LS",
 
-  BD: "BD",
-  BAS: "BAS",
+  // MD: "MD",
+  // MAS: "MAS",
   AD: "AD",
   AP: "AP",
+  AS: "AS",
 
   PASS: "PASS",
   ABIL: "ABIL",
@@ -431,27 +432,31 @@ export class BattleUI {
       const shield = unit.getMaxShield() > 0 ? `${unit.getShield().toFixed(0)}/${unit.getMaxShield().toFixed(0)}` : "-";
       const lifeSteal = stats.lifeSteal !== undefined && stats.lifeSteal > 0 ? `${stats.lifeSteal}%` : "-";
 
-      const currentSpeed = Math.hypot(unit.physics.getVelocityX(), unit.physics.getVelocityY());
       const movementType = unit.config.movementType.charAt(0).toUpperCase() + unit.config.movementType.slice(1);
 
-      const rangedDamage = unit.rangedAttack
-        ? unit.rangedAttack.damage.toString()
-        : "-";
-
-      const attackDamage =
+      const physicalAttack =
         unit.rangedAttack?.damageType === DamageType.PHYSICAL
-          ? rangedDamage
-          : "-";
+          ? unit.rangedAttack.damage
+          : unit.meleeAttack?.damageType === DamageType.PHYSICAL
+            ? unit.meleeAttack.damage
+            : null;
 
-      const abilityPower =
+      const magicAttack =
         unit.rangedAttack?.damageType === DamageType.MAGIC
-          ? rangedDamage
-          : "-";
+          ? unit.rangedAttack.damage
+          : unit.meleeAttack?.damageType === DamageType.MAGIC
+            ? unit.meleeAttack.damage
+            : null;
+
+      const attackDamage = physicalAttack?.toString() ?? "-";
+      const abilityPower = magicAttack?.toString() ?? "-";
+	  
+	  const attackSpeed = unit.meleeAttack ? unit.meleeAttack.attackSpeed.toString() : unit.rangedAttack?.attackSpeed.toString();
 
       const rowValues = [
         [`${unit.teamId}`, unitName, `${stats.mass}`, `${stats.speed}`, movementType],
         [hp, armor, magicResistance, shield, lifeSteal],
-        [stats.bodyDamage.toString(), stats.bodyAttackSpeed.toString(), attackDamage, abilityPower],
+        [attackDamage, abilityPower, attackSpeed],
         ["-", "-", "-"],
       ];
 
@@ -517,8 +522,10 @@ export class BattleUI {
         this.statsTextContainer.add(this.noUnitsText);
       }
       const noUnitsText = this.noUnitsText;
-      noUnitsText.setVisible(true);
-      this.statsContentHeight = noUnitsText.height + STATS_TABLE.panelBottomPadding;
+      if (noUnitsText) {
+        noUnitsText.setVisible(true);
+        this.statsContentHeight = noUnitsText.height + STATS_TABLE.panelBottomPadding;
+      }
     } else {
       if (this.noUnitsText) {
         this.noUnitsText.setVisible(false);
