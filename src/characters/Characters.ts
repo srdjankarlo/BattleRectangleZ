@@ -904,7 +904,7 @@ export const Characters = {
       maxShield: 30,
     },
     movementType: MovementType.BOUNCE,
-    aiType: AIType.MEDIC,
+    aiType: AIType.SUPPORT,
     icon: `${ICON_BASE}/support/medic.png`,
   },
   PLAGUE_DOCTOR: {

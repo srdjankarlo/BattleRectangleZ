@@ -42,8 +42,6 @@ const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
   SHL: "SHL",
   LS: "LS",
 
-  // MD: "MD",
-  // MAS: "MAS",
   AD: "AD",
   AP: "AP",
   AS: "AS",

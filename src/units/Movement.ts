@@ -23,10 +23,12 @@ export class Movement {
   public readonly movementType: MovementType;
 
   private direction: number;
+  private readonly random: () => number;
 
   constructor(
     speed: number,
     movementType: MovementType,
+    random: () => number = Math.random,
   ) {
     if (speed < 0) {
       throw new Error(
@@ -36,10 +38,11 @@ export class Movement {
 
     this.speed = speed;
     this.movementType = movementType;
+    this.random = random;
 
     // Choose a random starting direction.
     this.direction =
-      Math.random() * Math.PI * 2;
+      this.random() * Math.PI * 2;
   }
 
   initialize(physics: Physics): void {
@@ -88,7 +91,7 @@ export class Movement {
     physics: Physics,
   ): void {
     const randomTurn =
-      (Math.random() * 2 - 1) *
+      (this.random() * 2 - 1) *
       MAX_WANDER_TURN_PER_SECOND *
       deltaSeconds;
 
@@ -107,7 +110,7 @@ export class Movement {
     physics: Physics,
   ): void {
     const randomJitter =
-      (Math.random() * 2 - 1) *
+      (this.random() * 2 - 1) *
       MAX_JITTER;
 
     this.direction =

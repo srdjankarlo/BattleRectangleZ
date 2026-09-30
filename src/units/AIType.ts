@@ -10,7 +10,6 @@ export const AIType = {
   ASSASSIN: "assassin",
   MARKSMAN: "marksman",
   SUPPORT: "support",
-  MEDIC: "medic",
 } as const;
 
 export type AIType = (typeof AIType)[keyof typeof AIType];

@@ -10,6 +10,7 @@ import { UnitAI } from "./UnitAI";
 import type { UnitConfig } from "./UnitConfig";
 import { DamageType } from "./Damage";
 import type { DamageResult } from "./Health";
+import { applyDamage, isWithinMeleeRange, performMeleeAttack } from "./CombatRules";
 
 const MELEE_SWING_DURATION = 0.12;
 const MELEE_SWING_HALF_ANGLE = Math.PI / 3;
@@ -54,7 +55,7 @@ export class Unit {
   public readonly physics: Physics;
   public readonly meleeAttack: MeleeAttack | null;
   public readonly rangedAttack: RangedAttack | null;
-  public readonly ai: UnitAI;
+  public readonly ai: UnitAI<Unit>;
 
   constructor(
     scene: Phaser.Scene,
@@ -100,7 +101,7 @@ export class Unit {
     );
     this.movement.initialize(this.physics);
 
-    this.ai = new UnitAI(this, config.aiType, aiEnabled);
+    this.ai = new UnitAI<Unit>(this, config.aiType, aiEnabled);
 
     this.sprite = scene.add.image(x, y, config.icon);
     this.sprite.setDisplaySize(stats.width, stats.height);
@@ -258,28 +259,18 @@ export class Unit {
   // --------------------------------------------------
 
   public isWithinMeleeRange(other: Unit): boolean {
-    return this.meleeAttack
-      ? this.physics.isWithinRange(other.physics, this.meleeAttack.range)
-      : false;
+    return isWithinMeleeRange(this, other);
   }
 
   public performMeleeAttack(target: Unit): boolean {
-    const attack = this.meleeAttack;
-
-    if (
-      !attack ||
-      !this.isAlive() ||
-      !target.isAlive() ||
-      this.teamId === target.teamId ||
-      !attack.canAttack() ||
-      !this.isWithinMeleeRange(target)
-    ) {
+    if (!this.meleeAttack || !performMeleeAttack(this, target)) {
       return false;
     }
 
-    target.receiveDamage(attack.damage, attack.damageType, this);
+    if (!target.isAlive()) {
+      target.die();
+    }
 
-    attack.startCooldown();
     this.startMeleeSwing(target);
     return true;
   }
@@ -347,13 +338,11 @@ export class Unit {
       return { shieldDamage: 0, healthDamage: 0, totalDamage: 0 };
     }
 
-    const finalDamage = attacker
-      ? attacker.combat.calculateDamage(rawDamage, damageType, this.config.stats)
-      : rawDamage;
+    const result = attacker
+      ? applyDamage(attacker, this, rawDamage, damageType)
+      : this.takeRawDamage(rawDamage);
 
-    const result = this.health.takeDamage(finalDamage);
-
-    if (result.healthDamage > 0) {
+    if (!attacker && (result.healthDamage > 0 || result.shieldDamage > 0)) {
       this.updateHealthBar();
     }
 
@@ -361,16 +350,15 @@ export class Unit {
       this.die();
     }
 
-    if (attacker && result.healthDamage > 0) {
-      const healing = attacker.combat.calculateLifeStealHealing(result.healthDamage);
-
-      if (healing > 0) {
-        attacker.health.heal(healing);
-        attacker.updateHealthBar();
-      }
-    }
-
     return result;
+  }
+
+  private takeRawDamage(rawDamage: number): DamageResult {
+    return this.health.takeDamage(rawDamage);
+  }
+
+  public onHealthChanged(): void {
+    this.updateHealthBar();
   }
 
   private die(): void {

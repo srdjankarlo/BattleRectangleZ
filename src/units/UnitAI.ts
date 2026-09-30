@@ -1,51 +1,70 @@
 import { AIType } from "./AIType";
-import type { Unit } from "./Unit";
+import type { MeleeAttack } from "./MeleeAttack";
+import type { Physics } from "./Physics";
+import type { RangedAttack } from "./RangedAttack";
+import type { UnitConfig } from "./UnitConfig";
 
 const AI_UPDATE_INTERVAL = 0.15;
 const SUPPORT_DISTANCE = 90;
 const SUPPORT_TOO_CLOSE_DISTANCE = 55;
 const SUPPORT_HEALTH_THRESHOLD = 0.85;
-const ASSASSIN_RETREAT_THRESHOLD = 0.35;
-const ASSASSIN_RETURN_THRESHOLD = 0.7;
-const ASSASSIN_SUPPORT_DISTANCE = 80;
+const NEEDS_SUPPORT_HEALTH_THRESHOLD = 0.35;
+const RETURN_FROM_SUPPORT_THRESHOLD = 0.7;
+const SUPPORT_RETREAT_DISTANCE = 80;
 const MARKSMAN_MIN_RANGE_RATIO = 0.55;
 const MARKSMAN_IDEAL_RANGE_RATIO = 0.72;
 const MARKSMAN_MAX_RANGE_RATIO = 0.9;
 
 /**
+ * Minimal interface shared by live Phaser units and headless balance units.
+ * No Phaser types are required, so the exact same AI can run in both places.
+ */
+export interface AIUnit {
+  readonly config: Readonly<UnitConfig>;
+  readonly teamId: number;
+  readonly physics: Physics;
+  readonly meleeAttack: MeleeAttack | null;
+  readonly rangedAttack: RangedAttack | null;
+
+  isAlive(): boolean;
+  getHealthRatio(): number;
+  getMaxHealth(): number;
+}
+
+/**
  * High-level target selection and movement behavior.
  *
- * AI is intentionally updated at a lower frequency than physics. The selected
- * direction remains active between AI decisions, which keeps CPU use lower on
- * phones while movement itself stays frame-by-frame.
+ * AI decisions are throttled to 0.15 seconds. Movement itself remains
+ * frame-by-frame, using the last chosen velocity between AI decisions.
  */
-export class UnitAI {
+export class UnitAI<T extends AIUnit> {
   public readonly type: AIType;
 
-  private readonly owner: Unit;
+  private readonly owner: T;
   private readonly enabled: boolean;
-  private currentEnemyTarget: Unit | null = null;
-  private movementTarget: Unit | null = null;
+  private currentEnemyTarget: T | null = null;
+  private movementTarget: T | null = null;
   private updateTimer = 0;
   private retreating = false;
   private movementDirectiveActive = false;
   private readonly strafeDirection: number;
 
-  constructor(owner: Unit, type: AIType, enabled = true) {
+  constructor(owner: T, type: AIType, enabled = true) {
     this.owner = owner;
     this.type = type;
-	  this.enabled = enabled;
+    this.enabled = enabled;
     this.strafeDirection = owner.teamId % 2 === 0 ? 1 : -1;
   }
 
-  update(deltaSeconds: number, units: readonly Unit[]): void {
-	if (!this.enabled) {
+  update(deltaSeconds: number, units: readonly T[]): void {
+    if (!this.enabled) {
       this.currentEnemyTarget = null;
       this.movementTarget = null;
       this.retreating = false;
       this.movementDirectiveActive = false;
-      
-      // Periodically scan for the nearest enemy target so non-AI units can auto-attack
+
+      // AI-off units still auto-acquire the nearest enemy so their attack
+      // systems can be tested without movement AI controlling the unit.
       this.updateTimer -= deltaSeconds;
       if (this.updateTimer <= 0) {
         this.updateTimer = AI_UPDATE_INTERVAL;
@@ -53,6 +72,7 @@ export class UnitAI {
       }
       return;
     }
+
     this.updateTimer -= deltaSeconds;
 
     if (this.updateTimer > 0) {
@@ -64,7 +84,7 @@ export class UnitAI {
     this.applyMovementIntent();
   }
 
-  getCombatTarget(): Unit | null {
+  getCombatTarget(): T | null {
     if (!this.currentEnemyTarget?.isAlive()) {
       return null;
     }
@@ -80,45 +100,59 @@ export class UnitAI {
     return this.movementDirectiveActive;
   }
 
-  private chooseTargets(units: readonly Unit[]): void {
+  private chooseTargets(units: readonly T[]): void {
     if (!this.owner.isAlive()) {
-      this.currentEnemyTarget = null;
-      this.movementTarget = null;
-      this.movementDirectiveActive = false;
+      this.clearTargets();
       return;
     }
 
-    if (this.type === AIType.ASSASSIN) {
-      this.updateAssassinRetreatState(units);
+    // Combatants that are badly hurt seek a Support first and a Tank if there
+    // is no Support available. Supports and Tanks remain on their own jobs.
+    if (this.type !== AIType.SUPPORT && this.type !== AIType.TANK) {
+      this.updateSupportRetreatState(units);
 
       if (this.retreating) {
-        this.currentEnemyTarget = null;
-        this.movementTarget = this.findHealer(units);
-        return;
+        this.movementTarget = this.findSupportOrTank(units);
+
+        if (this.movementTarget) {
+          this.currentEnemyTarget = null;
+          return;
+        }
+
+        // The safety unit may have died. Resume normal combat if nobody is
+        // available to retreat to.
+        this.retreating = false;
       }
+    }
+
+    if (this.type === AIType.SUPPORT) {
+      this.movementTarget = this.chooseAllyToSupport(units);
+
+      if (this.movementTarget) {
+        this.currentEnemyTarget = null;
+      } else {
+        // A Support with nobody to help participates in combat normally.
+        this.currentEnemyTarget = this.chooseEnemy(units);
+      }
+
+      return;
     }
 
     this.currentEnemyTarget = this.chooseEnemy(units);
-
-    if (this.type === AIType.SUPPORT || this.type === AIType.TANK) {
-      this.movementTarget = this.chooseAllyToSupport(units);
-
-      if (this.movementTarget || this.type === AIType.SUPPORT) {
-        this.currentEnemyTarget = null;
-      }
-      return;
-    }
-
     this.movementTarget = this.currentEnemyTarget;
   }
 
-  private chooseEnemy(units: readonly Unit[]): Unit | null {
-    let best: Unit | null = null;
+  private chooseEnemy(units: readonly T[]): T | null {
+    let best: T | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
     let bestDistance = Number.POSITIVE_INFINITY;
 
     for (const candidate of units) {
-      if (candidate === this.owner || candidate.teamId === this.owner.teamId || !candidate.isAlive()) {
+      if (
+        candidate === this.owner ||
+        candidate.teamId === this.owner.teamId ||
+        !candidate.isAlive()
+      ) {
         continue;
       }
 
@@ -150,12 +184,16 @@ export class UnitAI {
     return best;
   }
 
-  private chooseAllyToSupport(units: readonly Unit[]): Unit | null {
-    let best: Unit | null = null;
+  private chooseAllyToSupport(units: readonly T[]): T | null {
+    let best: T | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
     for (const candidate of units) {
-      if (candidate === this.owner || candidate.teamId !== this.owner.teamId || !candidate.isAlive()) {
+      if (
+        candidate === this.owner ||
+        candidate.teamId !== this.owner.teamId ||
+        !candidate.isAlive()
+      ) {
         continue;
       }
 
@@ -173,32 +211,57 @@ export class UnitAI {
     return best;
   }
 
-  private findHealer(units: readonly Unit[]): Unit | null {
-    let best: Unit | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
+  private findSupportOrTank(units: readonly T[]): T | null {
+    let nearestSupport: T | null = null;
+    let nearestSupportDistance = Number.POSITIVE_INFINITY;
+    let nearestTank: T | null = null;
+    let nearestTankDistance = Number.POSITIVE_INFINITY;
 
     for (const candidate of units) {
-      if (candidate === this.owner || candidate.teamId !== this.owner.teamId || !candidate.isAlive() || candidate.config.aiType !== AIType.SUPPORT && candidate.config.aiType !== AIType.TANK) {
+      if (
+        candidate === this.owner ||
+        candidate.teamId !== this.owner.teamId ||
+        !candidate.isAlive()
+      ) {
         continue;
       }
 
       const distance = this.distanceSquared(candidate);
-      if (distance < bestDistance) {
-        best = candidate;
-        bestDistance = distance;
+
+      if (candidate.config.aiType === AIType.SUPPORT) {
+        if (distance < nearestSupportDistance) {
+          nearestSupport = candidate;
+          nearestSupportDistance = distance;
+        }
+        continue;
+      }
+
+      if (
+        candidate.config.aiType === AIType.TANK &&
+        distance < nearestTankDistance
+      ) {
+        nearestTank = candidate;
+        nearestTankDistance = distance;
       }
     }
 
-    return best;
+    // Support is preferred because it is the actual potential healing source.
+    return nearestSupport ?? nearestTank;
   }
 
-  private updateAssassinRetreatState(units: readonly Unit[]): void {
-    if (!this.retreating && this.owner.getHealthRatio() <= ASSASSIN_RETREAT_THRESHOLD) {
-      this.retreating = this.findHealer(units) !== null;
+  private updateSupportRetreatState(units: readonly T[]): void {
+    if (
+      !this.retreating &&
+      this.owner.getHealthRatio() <= NEEDS_SUPPORT_HEALTH_THRESHOLD
+    ) {
+      this.retreating = this.findSupportOrTank(units) !== null;
       return;
     }
 
-    if (this.retreating && this.owner.getHealthRatio() >= ASSASSIN_RETURN_THRESHOLD) {
+    if (
+      this.retreating &&
+      this.owner.getHealthRatio() >= RETURN_FROM_SUPPORT_THRESHOLD
+    ) {
       this.retreating = false;
     }
   }
@@ -211,11 +274,6 @@ export class UnitAI {
     }
 
     if (this.type === AIType.SUPPORT) {
-      this.moveSupport();
-      return;
-    }
-
-    if (this.type === AIType.TANK) {
       if (this.movementTarget) {
         this.moveSupport();
       } else {
@@ -225,7 +283,7 @@ export class UnitAI {
     }
 
     if (this.retreating) {
-      this.moveToTarget(this.movementTarget, ASSASSIN_SUPPORT_DISTANCE);
+      this.moveToTarget(this.movementTarget, SUPPORT_RETREAT_DISTANCE);
       return;
     }
 
@@ -264,8 +322,6 @@ export class UnitAI {
       return;
     }
 
-    // Strafe while holding a safe firing distance. This prevents ranged units
-    // from simply freezing when the enemy reaches their preferred range.
     const strafeX = -dy * this.strafeDirection;
     const strafeY = dx * this.strafeDirection;
 
@@ -306,7 +362,7 @@ export class UnitAI {
     this.owner.physics.setVelocity(0, 0);
   }
 
-  private moveToTarget(target: Unit | null, stopDistance: number): void {
+  private moveToTarget(target: T | null, stopDistance: number): void {
     if (!target || !target.isAlive()) {
       this.owner.physics.setVelocity(0, 0);
       return;
@@ -338,13 +394,13 @@ export class UnitAI {
     );
   }
 
-  private distanceSquared(target: Unit): number {
+  private distanceSquared(target: T): number {
     const dx = target.physics.x - this.owner.physics.x;
     const dy = target.physics.y - this.owner.physics.y;
     return dx * dx + dy * dy;
   }
 
-  private getEstimatedDps(unit: Unit): number {
+  private getEstimatedDps(unit: T): number {
     const melee = unit.meleeAttack;
     const ranged = unit.rangedAttack;
 
@@ -354,11 +410,18 @@ export class UnitAI {
     return meleeDps + rangedDps;
   }
 
-  private getAssassinTargetScore(unit: Unit): number {
+  private getAssassinTargetScore(unit: T): number {
     return unit.getHealthRatio() * 0.7 + unit.getMaxHealth() / 10000 * 0.3;
   }
 
-  private getSupportScore(unit: Unit): number {
+  private getSupportScore(unit: T): number {
     return unit.getHealthRatio() + unit.getMaxHealth() / 100000;
+  }
+
+  private clearTargets(): void {
+    this.currentEnemyTarget = null;
+    this.movementTarget = null;
+    this.retreating = false;
+    this.movementDirectiveActive = false;
   }
 }
