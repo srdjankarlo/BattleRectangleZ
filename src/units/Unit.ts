@@ -14,9 +14,7 @@ import { applyDamage, isWithinMeleeRange, performMeleeAttack } from "./CombatRul
 
 const MELEE_SWING_DURATION = 0.12;
 const MELEE_SWING_HALF_ANGLE = Math.PI / 3;
-const MELEE_WEAPON_WIDTH = 8;
-const MELEE_WEAPON_LENGTH_MIN = 28;
-const MELEE_WEAPON_LENGTH_MAX = 70;
+const MELEE_WEAPON_WIDTH = 35;
 
 export class Unit {
   // --------------------------------------------------
@@ -108,8 +106,11 @@ export class Unit {
     this.sprite.setDepth(10);
 
     // Melee weapons are only created for units that actually have a melee attack.
+    // The weapon length is exactly the configured melee range, measured outward
+    // from the unit's edge. It starts hidden and only becomes visible during
+    // an actual melee swing.
     if (this.meleeAttack) {
-      const meleeWeaponLength = Phaser.Math.Clamp(this.meleeAttack.range * 2, MELEE_WEAPON_LENGTH_MIN, MELEE_WEAPON_LENGTH_MAX);
+      const meleeWeaponLength = this.meleeAttack.range;
 
       if (this.meleeAttack.sprite) {
         const weaponImage = scene.add.image(x, y, this.meleeAttack.sprite);
@@ -235,8 +236,33 @@ export class Unit {
       MELEE_SWING_HALF_ANGLE +
       progress * MELEE_SWING_HALF_ANGLE * 2;
 
-    this.meleeWeapon.x = this.physics.x;
-    this.meleeWeapon.y = this.physics.y;
+    this.positionMeleeWeapon(angle);
+  }
+
+  /**
+   * Positions the weapon so its handle starts exactly at the unit's edge and
+   * its tip reaches the configured melee range. The support distance is
+   * calculated along the current attack direction, so rectangular unit icons
+   * are handled correctly even during diagonal swings.
+   */
+  private positionMeleeWeapon(angle: number): void {
+    if (!this.meleeWeapon) {
+      return;
+    }
+
+    const directionX = Math.cos(angle);
+    const directionY = Math.sin(angle);
+    const halfWidth = this.physics.width / 2;
+    const halfHeight = this.physics.height / 2;
+
+    const edgeDistance =
+      Math.abs(directionX) * halfWidth +
+      Math.abs(directionY) * halfHeight;
+
+    this.meleeWeapon.x =
+      this.physics.x + directionX * edgeDistance;
+    this.meleeWeapon.y =
+      this.physics.y + directionY * edgeDistance;
     this.meleeWeapon.rotation = angle;
   }
 
@@ -286,10 +312,11 @@ export class Unit {
     this.meleeSwingStartAngle = Math.atan2(dy, dx);
     this.meleeSwingElapsed = 0;
     this.meleeSwingActive = true;
-    this.meleeWeapon.rotation =
+
+    const startingAngle =
       this.meleeSwingStartAngle - MELEE_SWING_HALF_ANGLE;
-    this.meleeWeapon.x = this.physics.x;
-    this.meleeWeapon.y = this.physics.y;
+
+    this.positionMeleeWeapon(startingAngle);
     this.meleeWeapon.setVisible(true);
   }
 

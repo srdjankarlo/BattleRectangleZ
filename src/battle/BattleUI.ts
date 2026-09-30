@@ -45,6 +45,7 @@ const STAT_COLOR_KEYS: Record<string, keyof typeof STAT_COLORS> = {
   AD: "AD",
   AP: "AP",
   AS: "AS",
+  AR: "AR",
 
   PASS: "PASS",
   ABIL: "ABIL",
@@ -448,13 +449,13 @@ export class BattleUI {
 
       const attackDamage = physicalAttack?.toString() ?? "-";
       const abilityPower = magicAttack?.toString() ?? "-";
-	  
-	  const attackSpeed = unit.meleeAttack ? unit.meleeAttack.attackSpeed.toString() : unit.rangedAttack?.attackSpeed.toString();
+	    const attackSpeed = unit.meleeAttack ? unit.meleeAttack.attackSpeed.toString() : unit.rangedAttack?.attackSpeed.toString();
+      const attackRange = unit.meleeAttack ? unit.meleeAttack.range.toString() : unit.rangedAttack?.range.toString();
 
       const rowValues = [
         [`${unit.teamId}`, unitName, `${stats.mass}`, `${stats.speed}`, movementType],
         [hp, armor, magicResistance, shield, lifeSteal],
-        [attackDamage, abilityPower, attackSpeed],
+        [attackDamage, abilityPower, attackSpeed, attackRange],
         ["-", "-", "-"],
       ];
 

@@ -5,6 +5,7 @@ import type { UnitConfig } from "../units/UnitConfig";
 
 // Base icon path root
 const ICON_BASE = "/assets/icons/unit_icons";
+const WEAPON_BASE = "/assets/icons/unit_weapons";
 
 export const Characters = {
   // ==========================================
@@ -23,6 +24,7 @@ export const Characters = {
         damage: 20,
         attackSpeed: 1,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/cyclops_bat.png`,
       },
       speed: 50,
       width: 60,
@@ -162,6 +164,7 @@ export const Characters = {
         damage: 20,
         attackSpeed: 1,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/yeti_bat.png`,
       },
       armor: 40,
       magicResistance: 40,
@@ -237,6 +240,7 @@ export const Characters = {
         damage: 35,
         attackSpeed: 1.5,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/templar_greatsword.png`,
       },
       armor: 35,
       magicResistance: 35,
@@ -261,6 +265,7 @@ export const Characters = {
         damage: 45,
         attackSpeed: 2,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/gladiator_mace.png`,
       },
       armor: 30,
       magicResistance: 20,
@@ -285,6 +290,7 @@ export const Characters = {
         damage: 40,
         attackSpeed: 2,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/spartan_sword.png`,
       },
       armor: 40,
       magicResistance: 20,
@@ -309,6 +315,7 @@ export const Characters = {
         damage: 50,
         attackSpeed: 3,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/samurai_sword.png`,
       },
       armor: 25,
       magicResistance: 25,
@@ -333,6 +340,7 @@ export const Characters = {
         damage: 40,
         attackSpeed: 2,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/viking_axe.png`,
       },
       armor: 30,
       magicResistance: 30,
@@ -357,6 +365,7 @@ export const Characters = {
         damage: 35,
         attackSpeed: 1.5,
         damageType: DamageType.PHYSICAL,
+        sprite: `${WEAPON_BASE}/knight_sword.png`,
       },
       armor: 50,
       magicResistance: 20,
@@ -648,6 +657,7 @@ export const Characters = {
         attackSpeed: 3,
         projectileSpeed: 360,
         damageType: DamageType.PHYSICAL,
+        projectileSprite: `${WEAPON_BASE}/lancer_spear.png`,
       },
       armor: 20,
       magicResistance: 10,

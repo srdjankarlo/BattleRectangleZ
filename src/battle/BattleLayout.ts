@@ -88,24 +88,25 @@ export const STATS_TABLE = {
 export const STATS_ROW_COLUMN_WIDTHS = [
   [40, 100, 40, 30, 60],
   [100, 45, 45, 50, 40],
-  [67, 67, 67],
+  [67, 67, 67, 67],
   [90, 90, 90],
 ] as const;
 
 export const STATS_HEADER_ROWS = [
   ["TEAM", "UNIT", "MASS", "MS", "MOVE"],
   ["HP / REG", "ARM", "MR", "SHL", "LS"],
-  ["AD", "AP", "AS"],
+  ["AD", "AP", "AS", "AR"],
   ["PASS", "ABIL", "ULT"],
 ] as const;
 
 export const STAT_COLORS = {
   DEFAULT: { background: 0x2a2833, text: "#eeeeee" },
   IDENTITY: { background: 0x30313a, text: "#ffffff" },
-
+  MASS: { background: 0x5a3e24, text: "#9be564" },
+  MOVE: { background: 0x234a7a, text: "#cde7ff" },
+  
   HP: { background: 0x174d26, text: "#b7ff4a" },
   REG: { background: 0x0f4c4c, text: "#7fffe0" },
-  MASS: { background: 0x5a3e24, text: "#9be564" },
   ARM: { background: 0x7b828b, text: "#2b2118" },
   MR: { background: 0x9ddcf5, text: "#0b0f14" },
   SHL: { background: 0xd9b300, text: "#141414" },
@@ -113,9 +114,8 @@ export const STAT_COLORS = {
 
   AD: { background: 0xf0d4d4, text: "#b00020" },
   AP: { background: 0x123a5a, text: "#7ddcff" },
-  // AS: { background: 0xd66b00, text: "#7a0000" },
-  AS: { background: 0x4b2a73, text: "#e7c6ff" },
-  MOVE: { background: 0x234a7a, text: "#cde7ff" },
+  AS: { background: 0xb00020, text: "#f0d4d4" },
+  AR: { background: 0x7ddcff, text: "#123a5a" },
 
   PASS: { background: 0x454550, text: "#f2f2f2" },
   ABIL: { background: 0x40275f, text: "#dcb5ff" },
